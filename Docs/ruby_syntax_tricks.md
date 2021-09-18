@@ -45,7 +45,6 @@ In Ruby all of these are **true**. In fact, **_everything_** is **true** except 
 10. ### The @variable 
    By default we define **instance** variables using the `@` prefix. But when defined outside any method,
    such variable is actually a **class instance** variable.
-
    ```ruby
    class MyClass
       @x = 1  # A class instance variable
@@ -60,8 +59,7 @@ In Ruby all of these are **true**. In fact, **_everything_** is **true** except 
         puts @x, @y # @x and @y are accessible here
       end
    end
-   ```
-   
+   ```   
    In this code example, the `@y` variable is an attribute of the class object **MyClass**, which is 
    instance of the class `Class`. Class instance variables cannot be referenced **from within instance**
    methods and, in general, are not very useful.
