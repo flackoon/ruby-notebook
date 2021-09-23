@@ -64,4 +64,13 @@ In Ruby all of these are **true**. In fact, **_everything_** is **true** except 
    instance of the class `Class`. Class instance variables cannot be referenced **from within instance**
    methods and, in general, are not very useful.
 
+11. ### Multiple assignment
+   ```ruby
+   x = y = z = 0    # All are now zero
+   a = b = c = []   # Danger! a, b and c now all refer to the SAME empty array
+   
+   x = 5 
+   y = x += 2       # Now x and y are both 7
+   ```
+
    
