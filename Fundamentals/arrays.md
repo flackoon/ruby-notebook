@@ -100,7 +100,6 @@ b = [1,2,4,1,1]
 c = a <=> b       # -1 (meaning a < b) 
 ```
 
-
 > Because the **Array** class does not mix in the **Comparable** module
 > the usual operators `>, <, <= and >=` are not defined for arrays. You 
 > can define these yourself easily though. 
