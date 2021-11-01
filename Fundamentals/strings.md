@@ -43,4 +43,3 @@ y = Integer("junk")   # error
 ```
 
 > `to_i / to_f` stops converting  when it reaches a non-numeric character, but **Integer/Float** raises an error.
-3
