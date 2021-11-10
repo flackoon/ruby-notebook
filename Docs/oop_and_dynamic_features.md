@@ -663,3 +663,67 @@ arr += [5, 3, 0, 9]   # [8, 6, 7, 5, 3, 0, 9]
 This happens because `a += x` is semantically equivalent to `a = a + x`. The expression `a + x`
 is evaluated to a new object, which is then assigned to `a`. The object isn't changed, but the 
 variable now refers to a new object. 
+
+### Using `tap` in Method Chaining
+
+The `tap` method runs a block with access to the value of an expression in 
+the middle of other operations. Once use of `tap` can be to print intermediate
+values while they are being processed, because the block is passed the object
+that `tap` is called on:
+
+```ruby
+a = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 2]
+p.sort.uniq.tap{ |x| p x }.map{ |x| x**2 + 2*x + 7}
+# [1, 2, 3, 4, 5]
+# [10, 15, 22, 31, 42]
+```
+
+Providing this sort of access can be helpful, but the real power of tap comes 
+from its ability to change the object inside the block. This allows code to alter
+an object and still return the original object, rather than the result of the 
+last operation:
+
+```ruby
+def feed(woozle)
+  woozle.tap do |w|
+    w.stomach << Steak.new
+  end
+end
+```
+
+Without `tap`, our `feed` method would return the stomach that now contains
+a steak. Instead it returns the newly fed woozle.
+
+> This technique is highly useful inside class methods that construct an object, 
+> call methods on the object, and then return the object. It is also handly when
+> implementing methods that are intended to be chained together.
+
+### Sending an Explicit Message to an Object
+
+Every time you invoke a method, you're sending a message to an object. Most of
+the time, these messages are hard-coded as in a static language, but they need
+not always be. The `send` method will allow us to use a **Symbol** to represent
+a method name.
+
+```ruby
+class Array
+  def map_by(sym)
+    self.map{|x| x.send(sym)}
+  end
+end
+
+array.map_by(:name)
+```
+
+This particular example is not really practical because we can simply call
+`map(&:name)` and get the same result, but it illustrates the `send` method well.
+
+There's also a synonym `__send__` which does the exact same thing. It is given
+this peculiar name, because `send` is a name that might be used as a user-defined
+method name.
+
+> One issue that some coders have with `send` is that it allows circumvention of
+> Ruby's privacy model (in the sense that private methods may be called indirectly
+> by sending the object a string or symbol). If you are more comfortable "protecting
+> yourself" against doing this accidentally, you can use the `public_send` method instead.
+
