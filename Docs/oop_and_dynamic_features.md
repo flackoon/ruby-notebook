@@ -698,6 +698,8 @@ a steak. Instead it returns the newly fed woozle.
 > call methods on the object, and then return the object. It is also handly when
 > implementing methods that are intended to be chained together.
 
+## More Advanced Techniques
+
 ### Sending an Explicit Message to an Object
 
 Every time you invoke a method, you're sending a message to an object. Most of
@@ -727,3 +729,924 @@ method name.
 > by sending the object a string or symbol). If you are more comfortable "protecting
 > yourself" against doing this accidentally, you can use the `public_send` method instead.
 
+### Specializing an Individual Object
+
+In most OO languages, all objects of a particular class share the same behavior. The class acts a 
+template, producing an object with the same interface each time a constructor is called.
+
+Ruby acts the same way, but that's not the end of the story. Once you have a Ruby object, you can change
+its behavior "on the fly". Effectively, you're giving that object a **private, anonymous** subclass: All
+the methods of the original class are available, but you've added additional behavior for just that object.
+Because this behavior is private to the associated object, it can only occur once. A thing occuring only
+once is called a _"singleton"_, so we sometimes refer to singleton methods and classes.
+
+```ruby
+a = "hello"
+b = "goodbye"
+
+def b.upcase # create single method
+  gsub(/(.)(.)/) { $1.upcase + $2 }
+end
+
+puts a.upcase   # HELLO
+puts b.upcase   # Go0dBye
+```
+
+> Adding a singleton method to an object creates a _singleton_ class for that object if one does **not**
+> already exist. This singleton class's parent will be the object's **original** class.
+
+If you want to add multiple methods to an object, you can create the singleton class directly:
+
+```ruby
+b = "goodbye"
+
+class << b
+  def upcase # create single method 
+    gsub(/(.)(.)/) { $1.upcase + $2 }
+  end
+  
+  def upcase!
+    gsub!(/(.)(.)/) { $1.upcase + $2 }
+  end 
+end
+
+puts b.upcase # GoOdBye 
+puts b        # goodbye 
+b.upcase!
+puts b        # GoOdBye
+```
+
+Within the body of a class definition, `self` is the class you're defining, so creating a singleton
+based on it modifies the class's class. At the simplest level, this means that instance methods in the
+singleton class are class methods externally:
+
+```ruby
+class TheClass
+  class << self 
+    def hello
+      puts "hi"
+    end
+  end
+end
+
+# invoke a class method
+TheClass.hello    # hi
+```
+
+Another common use of this technique is to define class-level helper functions, which we can then access 
+in the rest of the class definition. As an example, we want to define serveral accessor functions that 
+always convert their results to a string. 
+
+```ruby
+class MyClass
+  class << self 
+    def accessor_string(*names)
+      names.each do |name|
+        class_eval <<-EOF
+          def #{name}
+            @#{name}.to_s
+          end
+        EOF
+      end
+    end
+  end
+
+  def initialize
+    @a = [1, 2, 3]
+    @b = Time.now
+  end
+  
+  accessor_string :a, :b
+end
+
+o = MyClass.new
+puts o.a  # 123
+puts o.b  # 2014-07-26 00:45:12 -0700
+```
+
+### Nesting Classes and Modules
+
+It is possible to **nest** classes and modules arbitrarily. 
+
+It's conceivable that you might want to create a nested class simply because the outside world doesn't
+need that class or shouldn't access it. In other words, you can create classes that are subject to the 
+principle at a lower level.
+
+```ruby
+class BugTrackingSystem
+  class Bug
+    # ...
+  end
+end
+
+
+# Nothing out here knows about Bug.
+```
+
+You can nest a class within a module, a module within a class, and so on.
+
+### Creating Parametric Classes
+
+Suppose we wanted to create multiple classes that differed only in the initial values of the class-level
+variables.
+
+```ruby
+class IntelligentLife    # Wrong way to do this.
+  @@home_planet = nil 
+  
+  def IntelligentLife.home_planet
+    @@home_planet
+  end
+  
+  def IntelligentLife.home_planet=(x)
+    @@home_planet = x
+  end
+end
+
+class Terran < IntelligentLife
+  @@home_planet = "Earth"
+end
+
+class Martian < IntelligentLife
+  @@home_planet = "Mars"
+end
+```
+
+However, this won't work. If we call `Terran.home_planet` we expect a result of "Earth" – but we get "Mars"!
+Why would this happen? The answer is that..
+
+> Class variables are **not** truly class variables; they belong not to the class but to the **_entire inheritance_**
+> hierarchy. The class variables aren't copied from the parent class but are **SHARED** with the parent (and thus
+> with the "siblings" classes).
+
+So the best way to solve this problem is:
+
+```ruby
+class IntelligentLife
+  class << self 
+    attr_accessor :home_planet
+  end
+  
+  # ...
+end
+
+class Terran < IntelligentLife
+  self.home_planet = "Earth"
+end
+
+class Martian < IntelligentLife
+  self.home_planet = "Mars"
+end
+
+puts Terran.home_planet   # Earth
+puts Martian.home_planet  # Mars
+```
+
+Here, we open up the singleton class and define an accessor called `home_planet`. The two child classes
+call their own accessors and set the variable. These accessors work strictly on a per-class basis now.
+
+As a small enhancement, let's also add a `private` call in the singleton class:
+
+`private :home_planet=`
+
+Making the writer private will prevent any code outside the hierarchy from changing this value. As always,
+using `private` is an **"advisory"** protection and is easily bypassed by the programmer who wants to. 
+Making a method private at least tells us we are not meant to call that method in this particular context.
+
+
+### Storing Code as **Proc** Objects
+
+The built-in class **Proc** represents a Ruby block as an object. **Proc** objects, like blocks, are
+closures and therefore carry around the context where they were defined. The `proc` method is a shorthand
+alias for `Proc.new`.
+
+```ruby
+local = 12
+myproc = Proc.new { |a| puts "Param is #{a}, local is #{local}"}
+myproc.call(99)   # Param is 99, local is 12
+```
+
+**Proc** objects are also created automatically by Ruby when a method defined with a trailing & parameter
+is called with a block:
+
+```ruby
+def take_block(x, &block)
+  puts block.class
+  x.times { |i| block[i, i*i] }
+end
+
+take_block(3) { |n, s| puts "#{n} squared is #{s}" }
+
+# Proc
+# 0 squared is 0
+# 1 squared is 1
+# 2 squared is 4
+```
+
+This example also shows the use of brackets `[]` as an alias for the `call` method.
+
+If you have a **Proc** object, you can pass it to a method that's expecting a block, preceding its name with
+an `&`, as shown here:
+
+```ruby
+myproc = proc { |n| print n, "..." }
+(1..3).each(&myproc)    # 1.. 2.. 3..
+```
+
+Although it can certainly be useful to pass a **Proc** to a method, calling `return` from inside the
+**Proc** returns for the **_entire_** method. A special type of **Proc** object, called a **_lambda_**
+returns only from the block:
+
+```ruby
+def greet(&block)
+  block.call
+  "Good morning, everyone"
+end
+
+philippe_proc = Proc.new { return "Too soon, Philippe!" }
+philippe_lambda = lambda { return "Too soon, Philippe!" }
+
+p greet(philippe_proc)    # Too soon, Philippe!
+p greet(philippe_lambda)  # Good morning, everyone.
+```
+
+> In addition to the keyword `lambda`, the `->` notation also creates lambdas. Just keep in mind that
+`->` (sometimes called "stabby proc" or "stabby lambda") puts block arguments outside the curly braces:
+
+```ruby
+non_stabby_lambda = lambda { |king| greet(king) }
+stabby_lambda     = -> (king) { stab(king) }
+```
+
+### Storing Code as **Method** Objects
+
+Ruby also lets you turn a method into an object directly using `Object#method`. The `method` method returns
+a **Method** object, which is a closure that is bound to the object it was created from:
+
+```ruby
+str = "cat"
+meth = str.method(:length)
+
+a = meth.call # 3 length of cat
+str << "erpillar"
+b = meth.call # 11 length of caterpillar
+
+str = "dog"
+c = meth.call  # 11 length of caterpillar
+```
+
+Note the final `call`. The variable `str` refers to a new object ("dog") now, but `meth` is still bound to
+the old object.
+
+To get a method that can be used with any instance of a particular class, you can use `instance_method`
+to create **UnboundMethod** objects. Before calling an **UnboundMethod** object, you must first bind it to a 
+particular object. This act of binding produces a **Method** object, which you call normally:
+
+```ruby
+umeth = String.instance_method(:length)
+
+m1 = umeth.bind("cat")
+m1.call                 # 3
+
+m2 = umeth.bind("caterpillar")
+m2.call                 # 11
+```
+
+### Using Symbols as Blocks
+
+> When a parameter is prefixed with an ampersand `&`, it is treated by Ruby as a **block**  parameter.
+> As shown earlier, it is possible to create a **Proc** object, assign it to a variable, and then use
+> that **Proc** as the block for a method that takes a block.
+
+However, it is possible to call methods that require blocks but only pass them a symbol prefixed by
+an ampersand. Why is that possible? The answer lies in the `to_proc` method. 
+
+A non-obvious side effect of providing a block parameter as an argument is that if the argument is not
+a **Proc**, Ruby will attempt to convert it into one by calling `to_proc` on it.
+
+Some clever Ruby developers realized that this could be leveraged to simplify their calls to `map`, and
+they defined the `to_proc` method on the **Symbol** class. The implementation looks something like this.
+
+```ruby
+class Symbol
+  def to_proc
+    Proc.new { |obj| obj.send(self) }
+  end
+end
+
+# Which allows map to be invoked like this:
+%w[A B C].map(&:chr)    # [65, 66, 67]
+```
+
+### How Module Inclusion Works
+
+When a module is included into a class, Ruby in effect creates a proxy class as the immediate ancestor
+of that class. Any methods in an included module are "masked" by any methods that appear in the class.
+
+```ruby
+module MyMod
+  def meth
+    "from module"
+  end
+end
+
+class ParentClass
+  def meth
+    "from parent"
+  end
+end
+
+class ChildClass < ParentClass
+  def meth
+    "from child"
+  end
+  
+  include MyMod
+end
+
+x = ChildClass.new
+p x.meth    # from child
+```
+
+This is just like a regular inheritance relationship: Anything the child redefines is the new current
+definition. This is true regardless of whether the `include` is done before or after the redefinition.
+
+```ruby
+# MyMod and ParentClass unchanged
+class ChildClass < ParentClass
+  include MyMod
+  
+  def meth
+    "from child: super = #{super}"
+  end
+end
+
+x = ChildClass.new
+p x.method    # from child: super = from module
+```
+
+As you can see, **MyMod** is the new parent of **ChildClass**.
+
+```ruby
+module MyMod
+  def meth
+    "from module: super #{super}"
+  end
+end
+
+# ParentClass is unchanged
+class ChildClass < ParentClass
+  include MyMod
+  
+  def meth
+    "from child: super #{super}"
+  end
+end
+
+x = ChildClass.new
+p x.method  # from child: super from module: super from parent
+```
+
+Modules have one more trick up their sleeve, though, in the form of the `prepend` method. It allows
+a module method to be inserted beneath the method of the including class.
+
+```ruby
+# MyMod and ParentClass unchanged
+class ChildClass < ParentClass
+  prepend MyMod
+  
+  def meth
+    "from child: suoer #{super}"
+  end
+end
+
+x = ChildClass.new
+p x.meth   # from module: super from child: super from parent
+```
+
+This feature of Ruby allows modules to alter the behavior of methods even when the method in the child
+class does not call `super`.
+
+Whether included or prepended, the `meth` from **MyMod** can call `super` only because there actually
+is a `meth` in the superclass (that is, in at least one ancestor).
+
+### Detecting Default Parameters
+
+The following question was once asked by Ian Macdonald on the Ruby mailing list: "How can I detect
+whether a parameter was specified by the caller, or the default was taken?". This is an interesting
+question; not something you would use every day, but still interesting.
+
+```ruby
+def meth(a, b=(flag=true; 345))
+  puts "b is #{b} and flag is #{flag.inspect}"
+end
+
+meth(123)       # b is 345 and flag is true
+meth(123, 345)  # b is 345 and flag is nil
+meth(123, 456)  # b is 456 and flag is nil
+```
+
+> This trick works even if the caller explicitly supplies what happens to be the default value. The 
+> trick is obvious when you see it: The parenthesized expression sets a local variable called `flag` but
+> then returns the default value `345`.
+
+### Delegating or Forwarding
+
+The **SimpleDelegator** class can be useful when the object delegated to can change over the lifespan
+of the receiving object. The `__setobj__` method is used to select the object to which you're delegating.
+
+The **DelegateClass** top-level method takes a class (to be delegated to) as a parameter. It then 
+creates a new class from which we can inherit. Here's an example of creating our own **Queue** class
+that delegates to an **Array** object:
+
+```ruby
+require 'delegate'
+
+class MyQueue < DelegateClass(Array)
+  def initialize(arg=[])
+    super(arg)
+  end
+  
+  alias_method :enqueue, :push
+  alias_method :dequeue, :shift
+end
+
+mq = MyQueue.new
+mq.enqueue(123)
+mq.enqueue(234)
+
+p mq.dequeue    # 123
+p mq.dequeue    # 234
+```
+
+It is also possible to inherit from **Delegator** and implement a `__getobj__` method; this is the way
+**SimpleDelegator** is implemented, and it offers more control over the delegation.
+
+However, if you want more control, you should probably be doing per-method delegation rather than
+per-class anyway. The `forwardable` library enables you to do this. 
+
+```ruby
+require 'forwardable'
+
+class MyQueue
+  extend Forwardable
+  
+  def initialize(obj=[])
+    @queue = obj  # delegate to this object
+  end
+  
+  def_delegator :@queue, :push, :enqueue
+  def_delegator :@queue, :shift, :dequeue
+  
+  def_delegators :@queue, :clear, :empty?, :length, :size, :<<
+  
+  # Any additional stuff
+end
+```
+
+This example shows that the `def_delegator` method associates a method call (for example, `enqueue`)
+with a delegated object **@queue** and the correct method to call on that object (`push`). In other
+words, when we call `enqueue` on a **MyQueue** object, we delegate that by making a push call no our 
+object `@queue` (which is usually an array).
+
+We say `:@queue`, rather than `:queue` or `@queue` simply because of the way the **Forwardable**
+class is written.
+
+Sometimes we want to pass methods through to the delegate object by using the same method name. The
+`def_delegators` method allows us to specify an unlimited number of these. For example, as shown in
+the preceding code example, invoking `length` on a **MyQueue** object will in turn call `length` on `@queue`.
+
+Unlike the first example in this chapter, the other methods on the delegate object are simply not 
+supported. This can be a good thing. For example, you don't want to invoke `[]` or `[]=` on a queue;
+if you do, you're not using it as a queue anymore.
+
+> Notice that the previous code allows the caller to pass an object into the constructor (to be 
+> used as the delegate object). In the spirit of duck-typing, this means that we can choose the
+> kind of object we want to delegate to – as long as it supports the set of methods that we 
+> reference in the code.
+
+```ruby
+require 'thread'
+
+q1 = MyQueue.new                    # use an array
+q2 = MyQueue.new(my_array)          # use one specific array
+q3 = MyQueue.new(Queue.new)         # use a Queue
+q4 = MyQueue.new(SizedQueue.new)    # use a SizedQueue
+```
+
+There's also a **SingleForwardable** class that operates on an instance rather than on an entire 
+class. This is useful if you want just one instance of a class to delegate to another object, while
+all other instances continue not to delegate.
+
+One final option is manual delegation. Ruby makes it extremely straightforward to simply wrap one object
+in another, which is another way to implement our queue:
+
+```ruby
+class MyQueue
+  def initialize(obj=[])
+    @queue = obj
+  end
+  
+  def enqueue(arg)
+    @queue.push(arg)
+  end
+  
+  # ...
+end
+```
+
+### Defining Class-Level Readers and Writers
+
+Ruby has no facility for creating these automatically. However, we could create something similar on
+our own very simply. Just open the singleton class and use the ordinary `attr` family of methods.
+
+The resulting instance variables in the singleton class will be class instance variables. These are 
+often better for our purposes than class variables because they are strictly "per class" and are not
+shared up and down the hierarchy.
+
+```ruby
+class MyClass
+  @alpha = 123
+  
+  class << self 
+    attr_reader :alpha
+    attr_writer :beta
+    attr_accessor :gamma
+  end
+end
+```
+
+## Working with Dynamic Features
+
+### Evaluating Code Dynamically
+
+The global function `eval` compiles and executes a string that contains a fragment of Ruby code.
+This is a powerful (albeit extremely dangerous) mechanism, because it allows you to build up code
+to be executed at runtime. For example, the following code reads in line of the form "name = expression".
+It then evaluates each expression and stores the result in a hash indexed by the corresponding variable
+name:
+
+```ruby
+parameters = {}
+
+ARGF.each do |line|
+  name, expr = line.split(/\s*=\s*/, 2)
+  parameters[name] = eval expr
+end
+```
+
+Ruby has 3 other methods that evaluate code "on the fly": `class_eval`, `module_eval` and `instance_eval`.
+The first 2 are synonyms, and all 3 do effectively the same thing; they evaluate a string or a block, but
+while doing so they change the value of `self` to their own receiver. Perhaps the most common use of
+`class_eval` allows you to add methods to a class when all you have is a reference to the class.
+
+The `eval` method also makes it possible to evaluate local variables in a context outside their scope.
+We don't advise doing this lightly, but it's nice to have the capability. 
+
+> Ruby associates local variables with blocks, with high-level definition constructs (class, module, and
+> other definitions), and with top-level of your program (the code outside any definition constructs). 
+> Associated with each of these scopes is the binding of variables, along with other housekeeping details.
+
+### Retrieving a Constant by Name
+
+The `const_get` method retrieves the value of a constant (by name) from the module or class to which
+it belongs:
+
+```ruby
+str = "PI"
+Math.const_get(str)   # Evaluates to Math::PI
+```
+
+This is a way of avoid the use of `eval`, which is both dangerous and considered inelegant. It is
+also computationally cheaper, and it's safer. Other similar methods are `instance_variable_set`, 
+`instance_variable_get`, and `define_method`.
+
+### Retrieving a Class by Name
+
+Classes in Ruby are normally named as constants in the "global" namespace – that is, members of **Object**. That
+means the proper way is with `const_get`, which we just saw:
+
+```ruby
+classname = "Array"
+klass = Object.const_get(classname)
+x = klass.new(4, 1)   # [1, 1, 1, 1]
+```
+
+If the constant is inside a namespace, just provide a string that with namespaces delimited by two colons – "Alpha::Beta::Gamma::FOOBAR"
+
+### Using `define_method`
+
+Other than `def`, `define_method` is the only normal way to add a method to a class or object; the latter, however, enables you
+to do it at runtime.
+
+> Of course, essentially everything in Ruby happens at runtime.
+
+However, within a method body or similar place, we can't just reopen a class. In such a case, we use `define_method`. It takes a symbol
+(for the name of the method) and a block (for the body of the method).
+
+```ruby
+if today =~ /Saturday|Sunday/
+  define_method(:activity) { puts "Playing" }
+else
+  define_method(:activity) { puts "Working" }
+end
+
+activity
+```
+
+Note, however, that `define_method` is private. This means that calling it from inside a class definition or method will work just fine, as 
+shown here:
+
+```ruby
+class MyClass
+  define_method(:body_method) { puts "The class body." }
+  
+  def self.new_method(name, &block)
+    define_method(name, &block)
+  end
+end
+
+MyClass.new_method(:class_method) { puts "A class method." }
+
+x = MyClass.new
+x.body_method   # Prints "The class body."
+x.class_method  # Prints "A class method."
+```
+
+> `define_method` takes a block, and a block in Ruby is a closure. This means that, unlikely an ordinary method definition, we are capturing context
+> when we define the method. The point is that the new method can access variables in the original scope of the block, even if that scope "goes away"
+> and is otherwise inaccessible.
+
+### Obtaining Lists of Defined Entities
+
+The **Module** module has a method `constants` that returns an array of all the constants in the system (including class and
+module names). The `nesting` method returns an array of all the modules nested at the **_current_** location in the code.
+
+The instance method `ancestors` returns an array of all the ancestors of the specified class or module.
+
+The `class_variables` method returns a list of all class variables in the given class and its superclasses. The `included_modules`
+method lists the modules included in a class.
+
+The **Class** methods `instance_methods` and `public_instance_methods` are synonyms; they return a list of the public instance
+methods for a class. The methods `private_instance_methods` and `protected_instance_methods` behave as expected. Any of
+these can take a **Boolean** parameter, which defaults to **true**; if it is set to `false`, superclasses will not
+be searched, thus resulting in a smaller list.
+
+The **Object** class has a number of similar methods that operate on instances. Calling `methods` will return a list of all
+methods that can be invoked on that object. Calling `public_methods`, `private_methods`, `protected_methods` and `singleton_methods`
+all take a boolean parameter and they return the methods you would expect them to return.
+
+### Removing Definitions
+
+The dynamic nature of Ruby means that pretty much anything that can be defined can also be undefined. Once conceivable
+reason to do this is to decouple pieces of code that are in the same scope by getting rid of variables after they have 
+been used; another reason might be to specifically disallow certain dangerous method calls. Whatever your reason for 
+removing a definition, it should naturally be done with caution because it can conceivably lead to debugging problems.
+
+The radical way to undefine something is with the `undef` keyword. You can `undef` methods, local vars, and constants
+at the top level. Although a class name is a constant, you **cannot** remove a class definition this way.
+
+You can't `undef` within a method definition or `undef` an instance variable.
+
+The `remove_method` and `undef_method` methods are also available (defined in **Module**). The difference is subtle:
+`remove_method` will remove the current (or nearest) definition of the method; `undef_method` will literally
+cause the method to be undefined (removing it from superclasses as well).
+
+The `remove_const` method will remove a constant:
+
+```ruby
+module Math
+  remove_const :PI
+end
+
+# No PI anymore!
+```
+
+> It is possible to remove access to a class definition in this way (because a class identifier is simply a constant)
+> ```ruby
+> class BriefCandle
+>   # ...
+> end
+> 
+> out_out = BriefCandle.new
+> 
+> class Object
+>   remove_const :BriefCandle
+> end
+> 
+> BriefCandle.new     # NameError: uninitialized constant BriefCandle
+> out_out.class.new   # Another BriefCandle instance
+> ```
+
+Methods such as `remove_const` and `remove_method` are (naturally enough) private methods. This is why we show these
+being called from inside a class or module definition rather than outside.
+
+### Handling References to Nonexistent Constants
+
+The `const_missing` method is called when you try to reference a constant that isn't known. A symbol referring to
+the constant is passed in. It is analogous to the `method_missing` method.
+
+To capture a constant globally, define this method within **Module** itself (Remember that **Module** is the parent
+of **Class**.)
+
+```ruby
+class Module
+  def const_missing(x)
+    "#{x} missing from Module"
+  end
+end
+
+class X
+end
+
+p X::BAR    # BAR missing from Module
+```
+
+### Handling Calls to Nonexistent Methods
+
+Sometimes it's useful to be able to write classes that respond to arbitrary method calls. For example, you might want to
+wrap calls to external programs in a class, providing access to each program as a method call. You can't know ahead of 
+time the names of all these programs, so you can't create the methods as you write the class.
+
+For that purpose **Object**#`method_missing` and `respond_to_missing?` come to the rescue. Whenever a Ruby object receives
+a message for a method that isn't implemented in the receiver, it invokes the `method_missing` method instead. You can use that
+to catch what would otherwise be an error, treating it as a normal method call.
+
+```ruby
+class CommandWrapper
+  private def method_missing(symbol, *args)
+    system(method.to_s, *args)
+  end
+end
+
+cw = CommandWrapper.new
+cw.date               # Sat Jul 26 02:08:06 PDT 2014
+cw.du '-s', '/tmp'    # 166749 /tmp 
+```
+
+If your `method_missing` handler decides that it doesn't want to handle a particular call, it should call `super` rather than
+raising an exception. That allows `method_missing` handles in superclasses to have a shot at dealing with the situation.
+
+### Improved Security with `taint`
+
+The first feature of Ruby that defends against malice attacks is the **_safe level_**. The safe level is stored in a 
+thread-local global variable and defaults to 0. Assigning a number to `$SAFE` sets the safe level, which can **never**
+be decreased.
+
+When the safe level is 1 or higher, Ruby starts blocking certain dangerous actions using tainted objects. Every object
+has a tainted or non-tainted status flag. If an object has its origin in the **outside world**, it is automatically tainted.
+This taint is passed on to objects that are derived from such an object.
+
+> Many core methods behave differently or raise an exception when passed tainted data as the safe level increases.
+
+|  |0|1|2|3|
+|---|---|---|---|---|
+|**$RUBYLIB** and **$RUBYOPT** are not honored| |✅|✅|✅|
+|Current directory is not added to path| |✅|✅|✅|
+|Disallows command-line options: **-e -i -l -s -x -S**| |✅|✅|✅|
+|Disallows **$PATH** if any directory in it is world-writable| |✅|✅|✅|
+|Disallows manipulation of a directory named by a tainted string| |✅|✅|✅|
+|**chroot** will not accept a tainted string| |✅|✅|✅|
+|**load/require** will not accept a tainted string (unless wrapped)| |✅|✅|✅|
+|Cannot manipulate file or pipe named by a tainted string| |✅|✅|✅|
+|**system** and **exec** will not accept a tainted string| |✅|✅|✅|
+|**glob**, **eval**, and **trap** will not accept a tainted string| |✅|✅|✅|
+|Cannot manipulate directories or use **chroot**| | |✅|✅|
+|Cannot load a file from a world-writable directory| | |✅|✅|
+|Cannot load a file whose name is tainted string starting with **~**| |✅|✅| |
+|Cannot use **File** methods: **chmod**, **chown**, **lstat**, **truncate**, **flock**| | |✅|✅|
+|Cannot use **File** class methods: **stat**, **umask**| | |✅|✅|
+|Cannot use **IO** methods: **ioctl**, **stat**| | |✅|✅|
+|Cannot use **Object** methods: **fork**, **syscall**, **trap**| | |✅|✅|
+|Cannot use **Process** class methods: **setpgid**, **setsid**| |✅|✅| |
+|Cannot use **Process** class methods: **setpriority**, **egid=**| |✅|✅| |
+|Cannot use **trap** to handle signals| | |✅|✅|
+|All objects are created tainted| | | |✅|
+|Objects cannot be untainted| | | |✅|
+
+### Defining Finalizers for Objects
+
+Ruby classes have constructors but don't have destructors. That's because Ruby uses garbage collection to remove unreferenced
+objects; a destructor would make no sense.
+
+The truth is that there's no reliable way to handle the finalization of objects. However, you can arrange to have code called
+when an object is garbage collected.
+
+```ruby
+ObjectSpace.define_finalizer(a) { |id| puts "Destroying #{id}" }
+```
+
+> Note: By the time the finalizer is called, the object has basically been destroyed already. An attempt to convert the ID
+> you receive back into an object reference using `ObjectSpace._id2ref` will raise a **RangeError**, complaining that you are
+> attempting to use a recycled object.
+>
+> Also, be aware that Ruby uses a "conservative" GC mechanism. There is no guarantee that an object will undergo garbage collection
+> before the program terminates.
+
+## Program Introspection
+
+### Traversing the **Object Space**
+
+The Ruby runtime system needs to keep track of all known (if for no other reason than to be able to garbage collect those
+that are no longer referenced). This information is made accessible via the **ObjectSpace.`each_object`** method, only objects
+of that type will be returned:
+
+```ruby
+ObjectSpace.each_object(Bignum) do |obj|
+  printf "%20s: %\n", obj.class, obj.inspect
+end
+
+# Prints:
+#   Bignum: 12398129471589217349182831
+#   Bignum: 128391825012031
+```
+
+If all you're after is a count of each type of object that has been created, the `count_objects` method will
+return a hash with object types and counts:
+
+```ruby
+require 'pp'
+
+p ObjectSpace.count_objects
+# {:TOTAL=>31231, :FREE=>124, ...etc}
+```
+
+### Examining the Call Stack
+
+Sometimes we want to know who our caller was. This could be useful information if, for example, we had a 
+fatal exception. The `caller` method, defined in **Kernel**, makes this possible. It returns an array of strings
+in which the first element represents the caller, the next element represents the caller's caller, and so on:
+
+```ruby
+def func1 
+  puts caller[0]
+end
+
+def func2
+  func1
+end
+
+func2 # somefile.rb:6 in ‘func2’
+```
+
+Each string in the caller array takes the form `file:line: in method` 
+
+### Tracking Changes to a Class or Object Definition
+
+There are a variety of reasons why would one want to track such things, but to give an example: implementing some kind of a GUI-based debugger
+and there's a need to refresh a list of methods if a user adds one on the fly.
+
+```ruby
+module Tracing
+  def self.hook_method(const, meth)
+    const.class_eval do
+      alias_method "untraced_#{meth}", "#{meth}"
+      define_method(meth) do |*args|
+        puts "#{meth} called with params (#{args.join(', ')})"
+        send("untraced_#{meth}", *args)
+      end
+    end
+  end
+  
+  def self.included(const)
+    const.instance_methods(false).each do |m|
+      hook_method(const, m)
+    end
+    
+    def const.method_added(name)
+      return if @disable_method_added
+      puts "The method #{name} was added to class #{self}"
+      @disable_method_added = true
+      Tracing.hook_method(self, name)
+      @disable_method_added = false
+    end
+    
+    if const.is_a(Class)
+      def const.inherrited(name)
+        puts "The class #{name} inherited from #{self}"
+      end
+    end
+    
+    if const.is_a?(Module)
+      def const.extend(name)
+        puts "The class #{name} extended itself with #{self}"
+      end
+      
+      def const.included(name)
+        puts "The class #{name} included #{self} into itself"
+      end
+    end
+    
+    def const.singleton_method_added(name, *args)
+      return if @disable_singleton_method_added
+      return if name == :singleton_method_added
+      
+      puts "The class method #{name} was added to the class #{self}"
+      @disable_singleton_method_added = true
+      singleton_class = (class << self; self; end)
+      Tracing.hook_method(singleton_class, name)
+      @disable_singleton_method_added = false
+    end
+  end
+end
+```

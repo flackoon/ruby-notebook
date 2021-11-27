@@ -298,7 +298,7 @@ x.unshift 3          # x is now [3, 1, 5, 9, 2, 6, 10]
 > occasions like this, you can use the spread (`*`) operator.
 
 
-### Itrating over an Array
+### Iterating over an Array
 
 The standard iteartor `each` is expectedly available here. 
 
