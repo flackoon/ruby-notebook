@@ -1,4 +1,49 @@
-~~# OOP and Dynamic Features in Ruby
+# OOP and Dynamic Features in Ruby
+
+1. [Everyday OOP Tasks](#)\
+   1.1. [Using Multiple Constructors](#)\
+   1.2. [Creating Instance Attributes](#)\
+   1.3. [Using more Elaborate Constructors](#)\
+   1.4. [Creating Class-Level Attributes and Methods](#)\
+   1.5. [Inheriting from a Superclass](#)\
+   1.6. [Testing Classes of Objects](#)\
+   1.7. [Testing Equality of Objects](#)\
+   1.8. [Controlling Access to Methods](#)\
+   1.9. [Copying an Object](#)\
+   1.10. [Using initialize_copy](#)\
+   1.11. [Understanding allocate](#)\
+   1.12. [Working with Modules](#)\
+   1.13. [Transforming or Converting Objects](#)\
+   1.14. [Creating Data-Only Classes (Structs)](#)\
+   1.15. [Freezing Objects](#)\
+   1.16. [Using tap in Method Chaining](#)
+2. [More Advanced Techniques](#)\
+   2.1. [Sending an Explicit Message to an Object](#)\
+   2.2. [Specializing an Individual Object](#)\
+   2.3. [Nesting Classes and Modules](#)\
+   2.4. [Creating Parametric Classes](#)\
+   2.5. [Storing Code as Proc Objects](#)\
+   2.6. [Storing Code as Method Objects](#)\
+   2.7. [Using Symbols as Blocks](#)\
+   2.8. [How Module Inclusion Works](#)\
+   2.9. [Detecting Default Parameters](#)\
+   2.10. [Delegating or Forwarding](#)\
+   2.11. [Defining Class-Level Readers and Writers](#)
+3. [Working with Dynamic Features](#)\
+   3.1. [Evaluating Code Dynamically](#)\
+   3.2. [Retrieving a Constant by Name](#)\
+   3.3. [Retrieving a Class by Name](#)\
+   3.4. [Using define_method](#)\
+   3.5. [Obtaining Lists of Defined Entities](#)\
+   3.6. [Removing Definitions](#)\
+   3.7. [Handling References to Nonexistent Constants](#)\
+   3.8. [Handling Calls to Nonexistent Methods](#)\
+   3.9. [Improved Security with taint](#)\
+   3.10. [Defining Finalizers for Objects](#)
+4. [Program Introspection](#)\
+   4.1. [Traversing the Object Space](#)\
+   4.2. [Examining the Call Stack](#)\
+   4.3. [Tracking Changes to a Class or Object Definition](#)
 
 ## Everyday OOP Tasks
 
@@ -38,6 +83,7 @@ a = ColoredRectangle.new(0x88, 0xaa, 0xff, 20, 30)
 b = ColoredRectangle.white_rect(15, 25)
 c = ColoredRectangle.red_square(40)
 ```
+
 
 ### Creating Instance Attributes
 
@@ -82,6 +128,7 @@ end
 The related methods `attr_reader`, `attr_writer`, and `attr_accessor` take any number of symbols
 as parameters. The first creates only getters; the second creates only setters; the third creates
 both.
+
 
 ### Using more Elaborate Constructors
 
@@ -153,6 +200,7 @@ branch.shelves    # 10
 > A setter method always takes an explicit receiver to distinguish the method call from an ordinary
 > assignment to a local variable.
 
+
 ### Creating Class-Level Attributes and Methods
 
 We can define class methods of our own by putting `self.` in front of the method name within a class.
@@ -184,6 +232,7 @@ outside its class declaration, these constants are **not** in scope.
 
 > There are class variables as well as class methods. These begin with a double `@` sign, and
 > their scope is the class rather than any instance of the class.
+
 
 ### Inheriting from a Superclass
 
@@ -284,6 +333,7 @@ in a `case` statement.
 
 If you want to get the superclass of an object or class, you can use the instance method `superclass`.
 
+
 ### Testing Equality of Objects
 
 The most basic comparison is the `equal?` method (which comes from **BasicObject**). It returns
@@ -332,6 +382,7 @@ The equality tests `==` and `=~` also have negated forms, `!=` and `!~`, respect
 implemented internally by reversing the sense of the non-negated form. This means if you implement,
 say, the method `==`, you also get the method `!=` for free.
 
+
 ### Controlling Access to Methods
 
 The `private` method. You can use it in 2 different ways. If in the body of a class or method definition
@@ -348,6 +399,7 @@ of the defining class and its subclasses.
 > As a final twist, normal methods defined outside a class or module definition (that is, the methods
 > defined at the top level) are made private by default. Because they are defined in class **Object**,
 > they are globally available, but they cannot be called with a receiver.
+
 
 ### Copying an Object
 
@@ -405,6 +457,7 @@ arr1 = [1, "flipper", 3]
 arr2 = Marshal.load(Marshal.dump(arr1))
 ```
 
+
 ### Using `initialize_copy`
 
 When you copy an object with `dup` or `clone`, the constructor is bypassed. All the state information
@@ -448,6 +501,7 @@ doc3.timestamp == doc4.timestamp  # false
 > `initialize_copy` is called after the information is copied. As a matter of fact, an empty `initialize_copy`
 > would behave just as if the method were not there at all.
 
+
 ### Understanding `allocate`
 
 If you want to create an object without calling its constructor, for example you want to have an 
@@ -455,6 +509,7 @@ object whose state is determined entirely by its accessors, then it isn't necess
 (which calls `initialize`) unless you really want to. 
 
 The `allocate` makes this easier. It returns a "blank" object of the proper class, yet uninitialized.
+
 
 ### Working with Modules
 
@@ -568,6 +623,7 @@ using it.
 The classic example is mixing in the `Comparable` module and defining a `<=>` method. Because the
 mixed-in methods can call the comparison method, we now have such operators as `<`, `>`, `<=` and so on.
 
+
 ### Transforming or Converting Objects
 
 Methods such as `puts` and contexts such as #{...} interpolation in strings all expect to receive a
@@ -597,6 +653,7 @@ end
 str = "UFO"
 a, b, c = str   # ["U", "F", "O"]
 ```
+
 
 ### Creating Data-Only Classes (Structs)
 
@@ -664,6 +721,7 @@ This happens because `a += x` is semantically equivalent to `a = a + x`. The exp
 is evaluated to a new object, which is then assigned to `a`. The object isn't changed, but the 
 variable now refers to a new object. 
 
+
 ### Using `tap` in Method Chaining
 
 The `tap` method runs a block with access to the value of an expression in 
@@ -698,6 +756,7 @@ a steak. Instead it returns the newly fed woozle.
 > call methods on the object, and then return the object. It is also handly when
 > implementing methods that are intended to be chained together.
 
+
 ## More Advanced Techniques
 
 ### Sending an Explicit Message to an Object
@@ -728,6 +787,7 @@ method name.
 > Ruby's privacy model (in the sense that private methods may be called indirectly
 > by sending the object a string or symbol). If you are more comfortable "protecting
 > yourself" against doing this accidentally, you can use the `public_send` method instead.
+
 
 ### Specializing an Individual Object
 
@@ -824,6 +884,7 @@ puts o.a  # 123
 puts o.b  # 2014-07-26 00:45:12 -0700
 ```
 
+
 ### Nesting Classes and Modules
 
 It is possible to **nest** classes and modules arbitrarily. 
@@ -844,6 +905,7 @@ end
 ```
 
 You can nest a class within a module, a module within a class, and so on.
+
 
 ### Creating Parametric Classes
 
@@ -978,6 +1040,7 @@ non_stabby_lambda = lambda { |king| greet(king) }
 stabby_lambda     = -> (king) { stab(king) }
 ```
 
+
 ### Storing Code as **Method** Objects
 
 Ruby also lets you turn a method into an object directly using `Object#method`. The `method` method returns
@@ -1012,6 +1075,7 @@ m2 = umeth.bind("caterpillar")
 m2.call                 # 11
 ```
 
+
 ### Using Symbols as Blocks
 
 > When a parameter is prefixed with an ampersand `&`, it is treated by Ruby as a **block**  parameter.
@@ -1037,6 +1101,7 @@ end
 # Which allows map to be invoked like this:
 %w[A B C].map(&:chr)    # [65, 66, 67]
 ```
+
 
 ### How Module Inclusion Works
 
@@ -1130,6 +1195,7 @@ class does not call `super`.
 Whether included or prepended, the `meth` from **MyMod** can call `super` only because there actually
 is a `meth` in the superclass (that is, in at least one ancestor).
 
+
 ### Detecting Default Parameters
 
 The following question was once asked by Ian Macdonald on the Ruby mailing list: "How can I detect
@@ -1149,6 +1215,7 @@ meth(123, 456)  # b is 456 and flag is nil
 > This trick works even if the caller explicitly supplies what happens to be the default value. The 
 > trick is obvious when you see it: The parenthesized expression sets a local variable called `flag` but
 > then returns the default value `345`.
+
 
 ### Delegating or Forwarding
 
@@ -1255,6 +1322,7 @@ class MyQueue
 end
 ```
 
+
 ### Defining Class-Level Readers and Writers
 
 Ruby has no facility for creating these automatically. However, we could create something similar on
@@ -1275,6 +1343,7 @@ class MyClass
   end
 end
 ```
+
 
 ## Working with Dynamic Features
 
@@ -1307,6 +1376,7 @@ We don't advise doing this lightly, but it's nice to have the capability.
 > other definitions), and with top-level of your program (the code outside any definition constructs). 
 > Associated with each of these scopes is the binding of variables, along with other housekeeping details.
 
+
 ### Retrieving a Constant by Name
 
 The `const_get` method retrieves the value of a constant (by name) from the module or class to which
@@ -1321,6 +1391,7 @@ This is a way of avoid the use of `eval`, which is both dangerous and considered
 also computationally cheaper, and it's safer. Other similar methods are `instance_variable_set`, 
 `instance_variable_get`, and `define_method`.
 
+
 ### Retrieving a Class by Name
 
 Classes in Ruby are normally named as constants in the "global" namespace – that is, members of **Object**. That
@@ -1333,6 +1404,7 @@ x = klass.new(4, 1)   # [1, 1, 1, 1]
 ```
 
 If the constant is inside a namespace, just provide a string that with namespaces delimited by two colons – "Alpha::Beta::Gamma::FOOBAR"
+
 
 ### Using `define_method`
 
@@ -1377,6 +1449,7 @@ x.class_method  # Prints "A class method."
 > when we define the method. The point is that the new method can access variables in the original scope of the block, even if that scope "goes away"
 > and is otherwise inaccessible.
 
+
 ### Obtaining Lists of Defined Entities
 
 The **Module** module has a method `constants` that returns an array of all the constants in the system (including class and
@@ -1395,6 +1468,7 @@ be searched, thus resulting in a smaller list.
 The **Object** class has a number of similar methods that operate on instances. Calling `methods` will return a list of all
 methods that can be invoked on that object. Calling `public_methods`, `private_methods`, `protected_methods` and `singleton_methods`
 all take a boolean parameter and they return the methods you would expect them to return.
+
 
 ### Removing Definitions
 
@@ -1441,6 +1515,7 @@ end
 Methods such as `remove_const` and `remove_method` are (naturally enough) private methods. This is why we show these
 being called from inside a class or module definition rather than outside.
 
+
 ### Handling References to Nonexistent Constants
 
 The `const_missing` method is called when you try to reference a constant that isn't known. A symbol referring to
@@ -1461,6 +1536,7 @@ end
 
 p X::BAR    # BAR missing from Module
 ```
+
 
 ### Handling Calls to Nonexistent Methods
 
@@ -1486,6 +1562,7 @@ cw.du '-s', '/tmp'    # 166749 /tmp
 
 If your `method_missing` handler decides that it doesn't want to handle a particular call, it should call `super` rather than
 raising an exception. That allows `method_missing` handles in superclasses to have a shot at dealing with the situation.
+
 
 ### Improved Security with `taint`
 
@@ -1524,6 +1601,7 @@ This taint is passed on to objects that are derived from such an object.
 |All objects are created tainted| | | |✅|
 |Objects cannot be untainted| | | |✅|
 
+
 ### Defining Finalizers for Objects
 
 Ruby classes have constructors but don't have destructors. That's because Ruby uses garbage collection to remove unreferenced
@@ -1542,6 +1620,7 @@ ObjectSpace.define_finalizer(a) { |id| puts "Destroying #{id}" }
 >
 > Also, be aware that Ruby uses a "conservative" GC mechanism. There is no guarantee that an object will undergo garbage collection
 > before the program terminates.
+
 
 ## Program Introspection
 
@@ -1571,6 +1650,7 @@ p ObjectSpace.count_objects
 # {:TOTAL=>31231, :FREE=>124, ...etc}
 ```
 
+
 ### Examining the Call Stack
 
 Sometimes we want to know who our caller was. This could be useful information if, for example, we had a 
@@ -1590,6 +1670,7 @@ func2 # somefile.rb:6 in ‘func2’
 ```
 
 Each string in the caller array takes the form `file:line: in method` 
+
 
 ### Tracking Changes to a Class or Object Definition
 

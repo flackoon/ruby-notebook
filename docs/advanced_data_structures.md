@@ -1,6 +1,15 @@
 # Advanced Data Structures
 
-## Sets
+1. [Working with Sets](#working-with-sets)\
+   1.1. [Simple Set operations](#simple-set-operations)\
+   1.2. [More advanced Set operations](#more-advanced-set-operations)
+2. [Working with Stacks and Queues](#working-with-stacks-and-queues)\
+   2.1. [Implementing a stricter Stack](#implementing-a-stricter-stack)\
+   2.2. [Implementing stricter Queues](#implementing-stricter-queues)\
+   2.3. [Implementing a Binary Tree](#implementing-a-binary-tree)\
+   2.4. [Sorting using a Binary Tree](#sorting-using-a-binary-tree)
+
+## Working with Sets
 
 To use the **Set** class we need to require it:
 
@@ -22,6 +31,7 @@ arr = [3,4,5]
 s2 = Set.new(arr)              # same
 s3 = Set.new(arr) {|x| x.to_s} # set of strings, not numbers
 ```
+
 
 ### Simple Set operations
 
@@ -60,6 +70,7 @@ Finally, two sets can be tested for equallity in an intuitive way:
 ```ruby
 Set[3,4,5] == Set[5,4,3]  # true
 ```
+
 
 ### More advanced Set operations
 
@@ -124,8 +135,9 @@ set = primes.divide{|i,j| (i-j).abs == 2}
 > doesn't always insist that a parameter or operand has to be another set. In fact,
 > most of these methods will take _any enumerable object_ as an operand. Consider this a feature.
 
+## Working with Stacks and Queues
 
-## Implementing a stricter Stack
+### Implementing a stricter Stack
 
 ```ruby
 class Stack
@@ -151,7 +163,8 @@ class Stack
 end
 ```
 
-## Implementing stricter Queues
+
+### Implementing stricter Queues
 
 This class implements a queue for the simple benefit of not accessing such a data structure
 illegally, as with the Stack.
@@ -187,7 +200,7 @@ end
 As mentioned, the **Queue** class in the thread library is needed in threaded code, because
 it is thread-safe. It is accompanied by a **SizedQueue** variant that is also thread-safe.
 
-## Implementing a Binary Tree
+### Implementing a Binary Tree
 
 ```ruby
 class Tree
@@ -253,7 +266,7 @@ puts
 # Prints "1 2 3 4 5 6 7"
 ```
 
-## Sorting using a Binary Tree
+### Sorting using a Binary Tree
 
 ```ruby
 class Tree

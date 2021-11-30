@@ -1,5 +1,31 @@
 # I/O and Data Storage
 
+1. [Working with Files and Directories](#working-with-files-and-directories)\
+   1.1. [Opening and Closing files](#opening-and-closing-files)\
+   1.2. [Updating a file](#updating-a-file)\
+   1.3. [Locking files](#locking-files)\
+   1.4. [Performing Buffered and Unbuffered I/O](#performing-buffered-and-unbuffered-io)\
+   1.5. [Manipulating File Ownership and Permissions](#manipulating-file-ownership-and-permissions)\
+   1.6. [Retrieving and Setting Timestamp information](#retrieving-and-setting-timestamp-information)\
+   1.7. [Checking File Existence and Size](#checking-file-existence-and-size)\
+   1.8. [Checking Special File Characteristics](#checking-special-file-characteristics)\
+   1.9. [Working with Pipes](#working-with-pipes)\
+   1.11. [Manipulating Pathnames](#manipulating-pathnames)\
+   1.12. [Command-Level File Manipulation](#command-level-file-manipulation)\
+   1.13. [Copying a Stream](#copying-a-stream)\
+   1.14. [Working with Temporary Files](#working-with-temporary-files)\
+   1.15. [Changing and Setting the Current Directory](#)\
+   1.16. [Changing the Current Root](#changing-the-current-root)\
+   1.17. [Iterating over Directory entries](#iterating-over-directory-entries)\
+   1.18. [Getting a list of Directory Entries](#getting-a-list-of-directory-entries)\
+   1.19. [Creating a Chain of Directories](#creating-a-chain-of-directories)\
+   1.20. [Deleting a Directory Recursively](#deleting-a-directory-recursively)\
+   1.21. [Finding files and directories](#finding-files-and-directories)
+2. [Higher-Level Data access](#higher-level-data-access)\
+   2.1. [Simple Marshaling](#simple-marshaling)
+
+## Working with Files and Directories
+
 ### Opening and Closing files
 
 The class method `File.new` instantiates a **File** object and opens the file. The first parameter is naturally the **
@@ -44,6 +70,7 @@ File.open("somefile", "w") do |file|
 end
 ```
 
+
 ### Updating a file
 
 Suppose that we want to open a file for reading and writing. This is done simply by adding a plus sign (+) in the file
@@ -60,6 +87,7 @@ f3 = File.new("file3", "a+")
 # Read/write; start at end of existing file or createa a 
 # new one.
 ```
+
 
 ### Locking files
 
@@ -80,6 +108,7 @@ locked = file.flock(File::LOCK_EX | File::LOCK_NB)
 # Try to lock the file, but don't block if we can't; in that case, 
 # locked will be false.
 ```
+
 
 ### Performing Buffered and Unbuffered I/O
 
@@ -111,6 +140,7 @@ print "Goodbye!\n"
 > STDOUT.sync = false
 > buf_flag = STDOUT.sync    # false
 > ```
+
 
 ### Manipulating File Ownership and Permissions
 
@@ -163,6 +193,7 @@ are `readable_real?`, `writable_real?` and `executable_real?`.
 We can test the ownership of the file as compared with the **effective user ID** (and group ID) of the current process.
 The class `File::Stat` has the instance methods `owned?` and `grpowned?` to accomplish this.
 
+
 ### Retrieving and Setting Timestamp information
 
 Each disk file has multiple timestamps associated with it (with some variations between OS'). The three timestamps that
@@ -203,6 +234,7 @@ mtime = File.mtime("delta")
 File.utime(Time.now, mtime, "delta")
 ```
 
+
 ### Checking File Existence and Size
 
 The `exist?` method in the **File** class provides a way to find out if a file exists.
@@ -222,6 +254,7 @@ flag = File.zero?("somefile")
 
 Conversely, the method `size?` returns either the size of the file in bytes if it is nonzero length, or the value `nil`
 if it is zero length.
+
 
 ### Checking Special File Characteristics
 
@@ -263,6 +296,7 @@ hard_count = File.new("myfile").stat.nlink # 0
 > `dev` – gives you an integer identifying the device on which the file resides
 > `rdev` – returns an integer specifying the kind of device
 > `ino` – for disk files, this gives you the starting **inode** number for the file.
+
 
 ### Working with Pipes
 
@@ -337,6 +371,7 @@ thread1.join thread2.join
 puts str # What hath God wrought?
 ```
 
+
 ### Manipulating Pathnames
 
 In manipulating pathnames, the first things to be aware of are the class methods **File.dirname**
@@ -368,6 +403,7 @@ Dir.chdir("/home/poole/personal/docs")
 abs = File.expand_path("../../misc")            # /home/poole/misc
 abs = File.expand_path("misc", "/home/poole")   # /home/poole/misc
 ```
+
 
 ### Command-Level File Manipulation
 
@@ -448,6 +484,7 @@ FileUtils.install("foo.so", "/usr/lib")
 # if it is the same name as the new one.
 ```
 
+
 ### Copying a Stream
 
 Use the class method `copy_stream` for copying a stream. All the data will be dumped from the
@@ -464,6 +501,7 @@ IO.copy_stream("garbage.in", "garbage.out", 1000, 80)
 # Copy 1000 bytes to output starting at offset 80
 ```
 
+
 ### Working with Temporary Files
 
 The `new` method (alias `open`) takes an arbitrary name as a **seed** and concatenates it with
@@ -477,6 +515,7 @@ the value `"/tmp"`
 The `close` method has an optional flag; if set to **true**, the file will be _deleted_ 
 immediately after it is closed (instead of waiting until program termination). The `path`
 method returns the actual pathname of the file, should you need it.
+
 
 ### Changing and Setting the Current Directory
 
@@ -493,6 +532,7 @@ puts Dir.pwd    # /var/tmp
 This method also takes a block parameter. If a block is specified, the current directory is changed
 only while the block is executed (and restored afterward).
 
+
 ### Changing the Current Root
 
 On most UNIX variants, it is possible to change the current process's idea of where root or "slash"
@@ -504,6 +544,7 @@ Dir.chdir("/home/guy/sandbox/tmp")
 Dir.chroot("/home/guy/sandbox")
 puts Dir.pwd      # /tmp
 ```
+
 
 ### Iterating over Directory entries
 
@@ -519,11 +560,13 @@ dir.each { |entry| puts entry }
 # Output is the same for both loops – the names of all files and subdirectories in /tmp)
 ```
 
+
 ### Getting a list of Directory Entries
 
 The class method `Dir.entries` returns an array of all the entries in the specified directory.
 The current and parent directories are included. If you don't want these, you'll have to remove them
 manually.
+
 
 ### Creating a Chain of Directories
 
@@ -536,6 +579,7 @@ In Ruby code, we can do his by using the `FileUtils.makedirs` method:
 require 'fileutils'
 FileUtils.mkpath("/tmp/these/dirs/need/not/exist")
 ```
+
 
 ### Deleting a Directory Recursively
 
@@ -550,6 +594,7 @@ require 'pathname'
 dir = Pathname.new("/home/poole")
 dir.rmtree
 ```
+
 
 ### Finding files and directories
 
@@ -576,6 +621,7 @@ and most common formats.
 The **Marshal** module offers simple object persistence, and the **PStore** library builds
 on that functionality. The YAML format (and Ruby library) provides another way to marshal
 objects, but using plaintext that is easily human readable.
+
 
 ### Simple Marshaling
 
