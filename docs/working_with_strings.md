@@ -1,6 +1,6 @@
 # Working with Strings
 
-1. [Representing Strings with Alternate Notations](#representing-strings-with-alternate-notations)\
+1. [Representing Strings with Alternate Notations](#representing-strings-with-alternate-notations)
 2. [Using Here-Documents](#using-here-documents)
 3. [Tokenizing a String](#tokenizing-a-string)
 4. [Formatting a String](#formatting-a-string)
