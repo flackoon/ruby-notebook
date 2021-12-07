@@ -328,7 +328,7 @@ puts x
 ```
 
 > MRI's ability to sometimes produce the correct result might lead a casual observer to think this code is
-> thread-safe. THe problem is hidden as a side effect of MRI's GIL, or **Global Interpreter Lock**, which ensures
+> thread-safe. The problem is hidden as a side effect of MRI's GIL, or **Global Interpreter Lock**, which ensures
 > that only one thread can run at a time. As you just saw, even with the GIL, MRI suffers from the same synchronization
 > problem and can still produce wrong result.
 
