@@ -1,49 +1,49 @@
 # OOP and Dynamic Features in Ruby
 
-1. [Everyday OOP Tasks](#)\
-   1.1. [Using Multiple Constructors](#)\
-   1.2. [Creating Instance Attributes](#)\
-   1.3. [Using more Elaborate Constructors](#)\
-   1.4. [Creating Class-Level Attributes and Methods](#)\
-   1.5. [Inheriting from a Superclass](#)\
-   1.6. [Testing Classes of Objects](#)\
-   1.7. [Testing Equality of Objects](#)\
-   1.8. [Controlling Access to Methods](#)\
-   1.9. [Copying an Object](#)\
-   1.10. [Using initialize_copy](#)\
-   1.11. [Understanding allocate](#)\
-   1.12. [Working with Modules](#)\
-   1.13. [Transforming or Converting Objects](#)\
-   1.14. [Creating Data-Only Classes (Structs)](#)\
-   1.15. [Freezing Objects](#)\
-   1.16. [Using tap in Method Chaining](#)
-2. [More Advanced Techniques](#)\
-   2.1. [Sending an Explicit Message to an Object](#)\
-   2.2. [Specializing an Individual Object](#)\
-   2.3. [Nesting Classes and Modules](#)\
-   2.4. [Creating Parametric Classes](#)\
-   2.5. [Storing Code as Proc Objects](#)\
-   2.6. [Storing Code as Method Objects](#)\
-   2.7. [Using Symbols as Blocks](#)\
-   2.8. [How Module Inclusion Works](#)\
-   2.9. [Detecting Default Parameters](#)\
-   2.10. [Delegating or Forwarding](#)\
-   2.11. [Defining Class-Level Readers and Writers](#)
-3. [Working with Dynamic Features](#)\
-   3.1. [Evaluating Code Dynamically](#)\
-   3.2. [Retrieving a Constant by Name](#)\
-   3.3. [Retrieving a Class by Name](#)\
-   3.4. [Using define_method](#)\
-   3.5. [Obtaining Lists of Defined Entities](#)\
-   3.6. [Removing Definitions](#)\
-   3.7. [Handling References to Nonexistent Constants](#)\
-   3.8. [Handling Calls to Nonexistent Methods](#)\
-   3.9. [Improved Security with taint](#)\
-   3.10. [Defining Finalizers for Objects](#)
-4. [Program Introspection](#)\
-   4.1. [Traversing the Object Space](#)\
-   4.2. [Examining the Call Stack](#)\
-   4.3. [Tracking Changes to a Class or Object Definition](#)
+1. [Everyday OOP Tasks](#everyday-oop-tasks)\
+   1.1. [Using Multiple Constructors](#using-multiple-constructors)\
+   1.2. [Creating Instance Attributes](#creating-instance-attributes)\
+   1.3. [Using more Elaborate Constructors](#using-more-elaborate-constructors)\
+   1.4. [Creating Class-Level Attributes and Methods](#creating-class-level-attributes-and-methods)\
+   1.5. [Inheriting from a Superclass](#inheriting-from-a-superclass)\
+   1.6. [Testing Classes of Objects](#testing-classes-of-objects)\
+   1.7. [Testing Equality of Objects](#testing-equality-of-objects)\
+   1.8. [Controlling Access to Methods](#controlling-access-to-methods)\
+   1.9. [Copying an Object](#copying-an-object)\
+   1.10. [Using initialize_copy](#using-initialize_copy)\
+   1.11. [Understanding allocate](#understanding-allocate)\
+   1.12. [Working with Modules](#working-with-modules)\
+   1.13. [Transforming or Converting Objects](#transforming-or-converting-objects)\
+   1.14. [Creating Data-Only Classes (Structs)](#creating-data-only-classes-structs)\
+   1.15. [Freezing Objects](#freezing-objects)\
+   1.16. [Using tap in Method Chaining](#using-tap-in-method-chaining)
+2. [More Advanced Techniques](#more-advanced-techniques)\
+   2.1. [Sending an Explicit Message to an Object](#sending-an-explicit-message-to-an-object)\
+   2.2. [Specializing an Individual Object](#specializing-an-individual-object)\
+   2.3. [Nesting Classes and Modules](#nesting-classes-and-modules)\
+   2.4. [Creating Parametric Classes](#creating-parametric-classes)\
+   2.5. [Storing Code as Proc Objects](#storing-code-as-proc-objects)\
+   2.6. [Storing Code as Method Objects](#storing-code-as-method-objects)\
+   2.7. [Using Symbols as Blocks](#using-symbols-as-blocks)\
+   2.8. [How Module Inclusion Works](#how-module-inclusion-works)\
+   2.9. [Detecting Default Parameters](#detecting-default-parameters)\
+   2.10. [Delegating or Forwarding](#delegating-or-forwarding)\
+   2.11. [Defining Class-Level Readers and Writers](#defining-class-level-readers-and-writers)
+3. [Working with Dynamic Features](#working-with-dynamic-features)\
+   3.1. [Evaluating Code Dynamically](#evaluating-code-dynamically)\
+   3.2. [Retrieving a Constant by Name](#retrieving-a-constant-by-name)\
+   3.3. [Retrieving a Class by Name](#retrieving-a-class-by-name)\
+   3.4. [Using define_method](#using-define_method)\
+   3.5. [Obtaining Lists of Defined Entities](#obtaining-lists-of-defined-entities)\
+   3.6. [Removing Definitions](#removing-definitions)\
+   3.7. [Handling References to Nonexistent Constants](#handling-references-to-nonexistent-constants)\
+   3.8. [Handling Calls to Nonexistent Methods](#handling-calls-to-nonexistent-methods)\
+   3.9. [Improved Security with taint](#improved-security-with-taint)\
+   3.10. [Defining Finalizers for Objects](#defining-finalizers-for-objects)
+4. [Program Introspection](#program-introspection)\
+   4.1. [Traversing the Object Space](#traversing-the-object-space)\
+   4.2. [Examining the Call Stack](#examining-the-call-stack)\
+   4.3. [Tracking Changes to a Class or Object Definition](#tracking-changes-to-a-class-or-object-definition)
 
 ## Everyday OOP Tasks
 
