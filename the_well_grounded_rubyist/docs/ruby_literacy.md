@@ -115,3 +115,69 @@ typically, you do so without even specifying the extension on the filename.
 
 There's a third way to load files: `require_relative`. This command loads features by searching relative to the directory
 in which the file from which it's called resides.
+
+
+## Out-of-the-box Ruby tools and applications
+
+When you install Ruby, you get a handful of important command-line tools, which are installed in whatever directory is
+configured as bindir.
+
+- **ruby** – The interpreter
+- **irb** – The interactive Ruby interpreter
+- **rdoc** and **ri** – Ruby documentation tools 
+- **rake** – Ruby make, a task-management utility
+- **gem** – A Ruby library and application package-management utility
+- **erb** – A templating system
+
+
+### Interpreter command-line switches
+
+#### Check syntax (-c)
+
+The `-c` switch tells Ruby to check the code in one or more files for syntactical accuracy without executing the code.
+
+
+#### Turn on warnings (-w)
+
+This flag causes the interpreter to run in warning mode. It's Ruby's way of saying, "What you've done is syntactically
+correct, but it's weird. Are you sure you meant to do that?"
+
+
+#### Execute literal script (-e)
+
+The `-e` switch tells the interpreter that the command line includes Ruby code in quotation marks, and that it should 
+execute that actual code rather than execute the code contained in a file.
+
+`$ ruby -e 'puts "David A. Black".reverse'`
+
+If you want to feed a program with more than one line to the -e switch, you can use literal line breaks or semicolons to
+separate lines.
+
+
+#### Run in line mode (-l)
+
+The `-l` switch causes every string output by the program to be placed on a line of its own, even if it normally wouldn't
+be. Usually this means that lines that are output using `print`, rather than `puts`, and that therefore don't automatically
+end with a newline character, now end with a newline.
+
+If a line ends with a newline character _already_, running it through `-l` adds _another_ newline.
+
+
+#### Require named file or extension (-rname)
+
+The `-r` switch calls `require` on its argument; `ruby – rscanf` will require **scanf** when the interpreter starts up.
+You can put more than one `-r` switch on a single command line.
+
+
+#### Run in verbose mode (-v, --verbose)
+
+Does two things: prints out information about your Ruby version, and then turns on the same warning mechanism as the `-w`
+flag.
+
+
+#### Combining switches (-cw)
+
+You can also combine two or more in a single invocation of Ruby.
+
+`$ ruby -cw filename`
+
