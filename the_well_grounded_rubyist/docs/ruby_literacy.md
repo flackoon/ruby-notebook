@@ -10,6 +10,8 @@
    3.1. ["Load"-ing a file in the default load path](#load-ing-a-file-in-the-default-load-path)\
    3.2. ["Require"-ing a feature](#require-ing-a-feature)\
    3.3. [require_relative](#require_relative)
+4. [Out-of-the-box Ruby tools and applications](#out-of-the-box-ruby-tools-and-applications)\
+   4.1. [Interpreter command-line switches](#interpreter-command-line-switches)
 
 
 ## Basic Ruby language literacy
