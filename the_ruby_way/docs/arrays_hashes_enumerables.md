@@ -404,7 +404,7 @@ a.zip b {|x1, x2| puts "#{x2} - #{x2}"}
 
 ### Creating a new hash
 
-A new hash can be created [the same way an array is created](Desktop/RubyExercise/docs/arrays.md####creating-an-array).
+A new hash can be created [the same way an array is created](./arrays.md####creating-an-array).
 
 There is also a class method `new` that can take a parameter specifying a
 **default** value. Note that this default value is actually **NOT part of the hash**.
