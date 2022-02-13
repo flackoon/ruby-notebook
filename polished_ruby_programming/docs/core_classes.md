@@ -130,4 +130,27 @@ when you need text or data.
 
 ### Implementing an in-memory database
 
-See the code example [in_memory_db](../snippets/in_memory_db).
+See the code example [in_memory_db](../snippets/in_memory_db.rb).
+
+
+## Working with Struct - one of the underappreciated core classes
+
+The **Struct** class is one of the underappreciated Ruby core classes. It allows you to create classes with one or more
+fields, with accessors automatically created for each field.
+
+```
+class Artist
+  attr_accessor :name, :albums
+
+  def initialize(name, albums)
+    @name = name
+    @albums = albums
+  end
+end
+```
+
+Instead of that, you can write a small amount of Ruby code, and have the initialize and accessor automatically created:
+
+```ruby
+Artist = Struct.new(:name, :albums)
+```
