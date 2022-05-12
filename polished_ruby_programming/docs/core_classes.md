@@ -154,3 +154,6 @@ Instead of that, you can write a small amount of Ruby code, and have the initial
 ```ruby
 Artist = Struct.new(:name, :albums)
 ```
+
+In general, a **Struct** class is a little lighter on memory than a regular class, but has slower accessor methods.
+Therefore for maximum performance, you may want to use regular classes and `attr_accessor` methods instead.
