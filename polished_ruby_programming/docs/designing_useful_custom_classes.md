@@ -123,3 +123,48 @@ depend on concrete implementations, but that concrete implementations should dep
 One concrete implementation of the dependency inversion principle is dependency injection. Ruby doesn't require that as
 much as other programming languages due to its flexibility of allowing singleton methods on almost all objects. It can
 still be used in Ruby though.
+
+
+## Deciding on larger classes or more classes
+
+||Larger classes|More classes|
+|---|---|---|
+|Conceptually simpler code|Yes|No|
+|More modular code (easier to change parts)|No|Yes|
+
+There must be a balance.
+
+
+Example:
+Let's say we are building a lib to handle the construction of [HTML tables](../snippets/html_table.rb).
+
+The single-class approach contains all the logic in a single method, and will probably perform the best. It looks a
+little ugly though, with the manual concatenation of strings. Perhaps it could be fixed by using separate classes per
+element type?
+
+The second approach uses six classes: the **HTMLTable** class, an **Element** base class, and **Table, Tbody, Tr**, and
+**Td** classes, which are created via metaprogramming. Each of these classes does a single thing, so arguably this does
+a better job adhering to the single-responsibility principle. However, each of the **Element** subclasses is doing
+essentially the same thing, and you could avoid the use of separate subclasses by passing the type in as a parameter to
+a method of the **Element** class.
+
+Definitely, the best part of this design is that all HTML generation happens in a single place.
+In addition to being overly complex, probably the worst part of this design is that it's probably slow, not just for the
+additional object creation, but also due to all of the temp strings. If one of the data cells is large, the memory used
+will be at least 8 times larger than the size of the large data cell, since the following strings will contain the
+large data:
+
+- The string containing the large data
+- The string created by CGI.escapeHTML
+- The string created in HTMLTable::Td#to_s
+- The string created in HTMLTable#to_s when joining the array of Td instances
+- The string created in HTMLTable::Tr#to_s
+- The string created in HTMLTable#to_s when joining the array of Tr instances
+- The string created in HTMLTable::Tbody#to_s
+- The string created in HTMLTable::Table#to_s
+
+You can add a `wrap` method that takes the HTML string being build and the element ype and uses an append-only design
+for building the HTML, yielding between the opening tags and the closing tags.
+
+This approach is slightly more complex than the initial approach, but it performs almost as well and will make it easier
+to expand later.
