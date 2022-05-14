@@ -74,3 +74,52 @@ start out with a single report format, single class is a better approach.
 > You may never need to deal with multiple report formats, and burdening your code with excess complexity will make it
 > harder to use. As a general principle, you should delay increasing complexity in your class designs until you actually
 > need it.
+
+
+### The open-closed principle
+
+The open-closed principle stipulates that a class should be open for extension, but closed for modification. In Ruby,
+pretty much all classes are open for both extension and modification. Ruby itself completely ignores the open-closed
+principle, and actively works to make sure classes aren't closed for modification.
+
+TL;DR;
+
+It is pointless to try to get Ruby classes to be open for extension and closed for modification. You choices are either
+frozen and closed for both modification and extension, or unfrozen and open for both modification and extension.
+
+
+### The Liskov substitution principles
+
+The Liskov substitution principle states that any place in the code where you can use an object of type **T**, you can
+also use an object of a subtype of **T**. In terms of Ruby, this means that any place in your code where you are using
+an instance of a class, you can also use an instance of a subclass without anything breaking.
+
+In general, this is a good principle to follow. When you subclass an existing class, if you override a method of the
+class, you should attempt to ensure that it accepts the same argument types and returns the same argument type. While
+useful to follow in general, you should not be dogmatic about applying it.
+
+
+### The interface segregation principle
+
+The interface segregation principle states that clients should not be forced to depend on methods they do not use. While
+this doesn't strictly apply to Ruby directly, since Ruby will only call methods that are used, a looser interpretation
+is that this applies classes to how large should be in terms of methods.
+
+Classes with a large number of methods, where the programmer is using only a few of the methods, can be more difficult
+to understand. If 80% of your users are the same 20% of methods of a class, it may make sense to move many of the methods
+to a separate module (assuming backwards compatibility is not an issue).
+
+In the real world, it's less likely that you'll have 80% of users using the same 20% of the methods. More likely, you'll
+have 80% of users using 20% of the methods, but which 20% are used varies widely from one user to the next. In that case
+there is no easy way to separate the code.
+
+
+### The dependency inversion principle
+
+The dependency inversion principle states that high-level modules should not depend on low-level modules, and both
+high-level modules and low-level modules should depend on abstractions. It also states that abstractions should not
+depend on concrete implementations, but that concrete implementations should depend on abstractions.
+
+One concrete implementation of the dependency inversion principle is dependency injection. Ruby doesn't require that as
+much as other programming languages due to its flexibility of allowing singleton methods on almost all objects. It can
+still be used in Ruby though.
