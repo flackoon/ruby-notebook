@@ -168,3 +168,15 @@ for building the HTML, yielding between the opening tags and the closing tags.
 
 This approach is slightly more complex than the initial approach, but it performs almost as well and will make it easier
 to expand later.
+
+
+## Learning when to use custom data structures
+
+Ruby only offers 2 main core data structures for collections, arrays, and hashes. They are not very simple though.
+Actually, they are complex internally. For example, when adding an element on an array when the array doesn't have any
+room internally, Ruby expands the array not by a single element, but in relation to how large the array currently is, so
+if you keep adding elements to the array, it doesn't need ot resize the array each time.
+
+Likewise, for small hash tables, Ruby may store the hash table as a simple list if it thinks it will be faster to scan
+the list than use a real hash table. If it grows, Ruby will internally convert the list into a real hash table, at the
+point at which it roughly determines that it will be faster to use a separate hash lookup.
