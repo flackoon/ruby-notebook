@@ -350,3 +350,167 @@ TransactionProcessingSystemReport.each do |report|
   puts report.name
 end
 ```
+
+
+## Learning how best to use instance variables
+
+Almost all objects in Ruby support instance variables. The exceptions are the immediate objects: `true`, `false`, `nil`,
+integer, floats, and symbols. The reason is that they lack their own identity. Ruby is written in C, and internally to
+Ruby, all objects are stored using the `VALUE` type. `VALUE` usually operates as a pointer to another, larger location
+in memory (called the Ruby heap). In that larger location in memory is where instance variables are stored directly, or
+if there isn't enough storage, a pointer to a separate location in memory where they are stored.
+
+Immediate objects are different from all other objects in that they are not pointers, they contain all information about
+the object in a single location in memory that is the same size as a pointer. This means there is no space for them to
+contain instance variables.
+
+Additionally, unlike most other objects, conceptually there are no separate instances of immediate objects, unlike other
+objects.
+
+
+## Increasing performance with instance variables
+
+As with local variables, you can increase performance by adding instance variables. The same principles for optimizing
+with local variables, in general, apply to instance variables. Most times where you have a method that is likely to be
+called multiple times and where the method is idempotent, you can store the result of the calculation in an instance
+variable to increase performance.
+
+> If an object method that does some heavy lifting is called multiple times throughout the average time of the object,
+> then storing the result of the calculation in an instance variable can significantly improve performance.
+
+<details>
+  <summary>Caching via instance variable example</summary>
+
+  Let's assume you have an **Invoice** class that accepts an array of **LineItem** instances, containing info about the
+  items purchase. When preparing the invoice, the total tax needs to be calculated:
+
+  ```ruby
+  LineItem = Struct.new(:name, :price, :quantity)
+
+  class Invoice
+    def initialize(line_items, tax_rate)
+      @line_items = line_items
+      @tax_rate = tax_rate
+    end
+
+    def total_tax
+      @tax_rate * @line_items.sum{|item| item.price * item.quantity}
+    end
+  end
+  ```
+
+  If `total_tax` is only called once in the average lifetime of the **Invoice** instance, then it doesn't make sense to
+  cache the value of it, and caching the value of it can make things slower and require increased memory. However, if
+  it is called multiple times in the lifetime of an **Invoice** instance, caching the value can significantly improve
+  performance.
+
+  ```ruby
+  def total_tax
+    @total_tax ||= @tax_rate * @line_items.sum{|item| item.price * item.quantity}
+  end
+  ```
+
+</details>
+
+There are couple of cases where using an instance variable cannot be used. First, this approach works only if the
+expression being called cannot result in a `false` or `nil` value. Otherwise because of the `||=` operator, the expression
+will keep reevaluating.To handle this case, you should use an explicit `defined?` check for the instance variable:
+
+```ruby
+def total_tax
+  return @total_tax if defined?(@total_tax)
+  @total_tax = @tax_rate * @line_items.sum{|item| item.price * item.quantity}
+end
+```
+
+You can also be more explicit about it and use `instance_variable_defined?` instead of `defined?`, but it is recommended
+that you use `defined?` because Ruby is better able to optimize it. This is because `defined?` is a keyword and
+`instance_variable_defined?` is a regular method, and the Ruby VM optimizes the `defined?` keyword into a direct instance
+variable check.
+
+The second case where you cannot use this check is when the **Invoice** instance is frozen. You cannot add instance
+variables to frozen objects. The solution then is to have an unfrozen instance variable hash inside the frozen object.
+Because the unfrozen hash can be modified, you can still cache values in it.
+
+<details>
+  <summary>Unfrozen hash cache instance variable example</summary>
+
+  ```ruby
+  LineItem = Struct.new(:name, :price, :quantity)
+
+  class Invoice
+    def initialize(line_items, tax_rate)
+      @line_items = line_items
+      @tax_rate = tax_rate
+      @cache = {}
+      freeze
+    end
+
+    def total_tax
+      @cache[:total_tax] ||= @tax_rate * @line_items.sum{|item| item.price * item.quantity}
+    end
+  end
+  ```
+
+  Like the instance variable approach, the previous example also has issues if the expression evaluates to `nil` or `false`.
+  You can fix those using a similar approach with `key?` instead of `defined?`.
+
+  ```ruby
+  def total_tax
+    return @cache[:total_tax] if @cache.key?(:total_tax)
+    @cache[:total_tax] = @tax_rate * @line_items.sum{|item| item.price * item.quantity}
+  end
+  ```
+
+</details>
+
+The other issue with this approach, and with caching in general using instance variables, is that, unlike local variables,
+you probably do not have control over the entire scope of the instance. If any of the objects in the expression being
+cached are mutable, there is a chance that the cached value could become inaccurate.
+
+<details>
+  <summary>Securing/Enhancing instance variable caching example</summary>
+
+  If `line_items` in the previous example gets modified after the `total_tax` is once calculated, then we have a problem:
+
+  ```ruby
+  line_items = [LineItem.new('Foo', 3.5r, 10)]
+  invoice = Invoice.new(line_items, 0.095r)
+  tax_was = invoice.total_tax
+  line_items << LineItem.new('Bar', 4.2r, 10)
+  tax_is = invoice.total_tax
+  ```
+
+  With this example, `tax_was` and `tax_is` will be the same value, even though the **Invoice** instance's line items
+  have changed.
+
+  To tackle this issue, there are a couple of approaches. The first one is to duplicate the line items, so that changes
+  to the line items used as an argument do not affect the invoice:
+
+  ```ruby
+  def initialize(line_items, tax_rate)
+    @line_items = line_items.dup
+    @tax_rate = tax_rate
+    @cache = {}
+    freeze
+  end
+  ```
+
+  The second approach is freezing the line items. This is a better approach, except that it mutates the argument, and in
+  general it is a bad idea for any method to mutate arguments that it doesn't control unless that is the sole purpose of
+  the method.
+
+  ```ruby
+  def initialize(line_items, tax_rate)
+    @line_items = line_items.freeze
+    # ...
+  end
+  ```
+
+  The safest approach is the combination of both approaches:
+
+  ```ruby
+  @line_items = line_items.dup.freeze
+  ```
+
+</details>
