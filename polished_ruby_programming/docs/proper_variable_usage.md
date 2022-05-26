@@ -513,4 +513,242 @@ cached are mutable, there is a chance that the cached value could become inaccur
   @line_items = line_items.dup.freeze
   ```
 
+  This makes sure that the array of line items cannot be modified. However, there is still a way for the resulting
+  calculation to go stale, and that is if one of the line items is modified directly.
+
+  To avoid this issue, you need to make sure you can freeze the line items. One approach is to make all **LineItem**
+  instances frozen:
+
+  ```ruby
+  LineItem = Struct.new(:name, :price, :quantity) do
+    def initialize(...)
+      super
+      freeze
+    end
+  end
+  ```
+
+  Or if you only want to freeze the line items given on the invoice, you can map over the list of line items and return
+  a frozen dump of each item:
+
+  ```ruby
+  def initialize(line_items, tax_rate)
+    @line_items = line_items.map do |item|
+      item.dup.freeze
+    end
+    # ...
+  end
+  ```
 </details>
+
+
+## Handling scope issues with instance variables
+
+One of the main issues to be concerned with when using instance variables is using them inside blocks passed to methods
+you don't control. Let's assume you were using the **Invoice** class from the previous section, but you want to add a
+method named `line_item_taxes` that returns an array of taxes, one for each line item.
+
+```ruby
+class Invoice
+  def line_item_taxes
+    @line_items.map do |item|
+      @tax_rate * item.price * item.quantity
+    end
+  end
+end
+```
+
+This would work in most cases, but there's a case where it would fail. In this example, you are assuming that `@line_items`
+is an array of **LineItem** instances. Instead of a simple array, the passed-in `line_items` argument could be an
+instance of a separate class:
+
+```ruby
+class LineItemList < Array
+  def initialize(*line_items)
+    super(line_items.map do |name, price, quantity|
+      LineItem.new(name, price, quantity)
+    end)
+  end
+
+  def map(&block)
+    super do |item|
+      item.instance_eval(&block)
+    end
+  end
+end
+
+Invoice.new(LineItemList.new(['Foo', 3.5r, 10]), 0.095r)
+```
+
+One reason to implement such a class is to make it easier to construct a literal list of line items, by just providing
+arrays of name, price and quantity, and having it automatically create the **LineItem** instances. To make it even easier
+for the user, the **LineItemList** class has a `map` method that evaluates the block passed to it in the context of the
+item. This allows for simpler code inside the block, as long as you are only accessing local variables and methods of
+the current line item.
+
+```ruby
+line_item_list.map do
+  price * quantity
+end
+```
+
+Instead of the more verbose code:
+
+```ruby
+line_item_list.map do |item|
+  item.price * item.quantity
+end
+```
+
+The trade-off is that doing this changes the scope of the block from caller's scope to the scope of the line item, hence,
+`@tax_rate` references no longer to the invoice, but to the line item.
+
+```ruby
+class Invoice
+  def line_item_taxes
+    @line_items.map do |item|
+      @tax_rate * item.price * item.quantity
+    end
+  end
+end
+```
+
+You can, of course, work around by assigning the instance variable to a local variable before the block. That's probably
+a good idea anyway, as it is likely to improve the overall performance.
+
+```ruby
+class Invoice
+  def line_item_taxes
+    tax_rate = @tax_rate
+    @line_items.map do |item|
+      tax_rate * item.price * item.quantity
+    end
+  end
+end
+```
+
+> Issues like this are one reason why it's generally a **bad** idea for code to use methods such as `instance_eval` and
+> `instance_exec` without a good reason. Using `instance_eval` and `instance_exec` on blocks that are likely to be called
+> inside user code, as opposed to blocks used for configuration, can be a common source of bugs.
+
+
+## Understanding how constants are just a type of variable
+
+Ruby's constants are actually variables. It's not even an error in Ruby to reassign a constant; it only generates a
+warning. 
+
+At best, Ruby's constants should be considered only as a recommendation. That being said, not modifying a constant is a
+good recommendation.
+
+
+## Handling scope issues with constants
+
+Constant scope in Ruby is different than both local variable scope or instance variable scope. In some ways, it is lexical,
+but it's not truly lexical as the constant doesn't have to be declared in the same lexical scope in which it is accessed.
+
+
+It's easiest to learn Ruby constant scope rules by examples.
+
+<details>
+  <summary>Constants resolution example</summary>
+
+  ```ruby
+  class A
+    W = 0
+    X = 1
+    Y = 2
+    Z = 3
+  end
+
+  class Object
+    U = -1
+    Y = -2
+  end
+
+  class B < A
+    X = 4
+    Z = 5
+  end
+
+  class B
+    U # -1 from Object
+    W # 0 from A
+    X # 4 from B
+    Y # 2 from A
+    Z # 5 from B
+  end
+  ```
+
+</details>
+
+
+From this example, we know that the class lookup will look first at the class or module for the constant, and only at
+superclasses of the class or module if the constant isn't found in the class directly, and if the superclass doesn't
+contain the constant, continue recursively up the ancestor chain.
+
+<details>
+  <summary>Continue previous example</summary>
+
+  For a single-class definition, that's all you need to worry about in regards to constants resolution. However, it gets
+  significantly more complex when you have a class or module definition inside another class or module definition.
+
+  ```ruby
+  class C < A
+    Y = 6
+  end
+
+  class D
+    Z = 7
+  end
+
+  class E < D
+    W = 8
+  end
+
+  class E
+    class ::C
+      U # -1, from Object
+      W # 8, from E
+      X # 1, from A
+      Y # 6, from C
+      Z # 3, from A
+    end
+  end
+  ```
+
+</details>
+
+So Ruby's constant lookup algorithm looks like this:
+
+> 1. Look into the current namespace.
+> 2. Look in the lexical namespaces containing the current namespace.
+> 3. Look in the ancestors of the current namespace, in order.
+> 4. Do not look in ancestors of the lexical namespaces containing the current namespace.
+
+
+## Visibility differences between constants and class instance variables
+
+One significant difference between constants and class instance variables is that constants are externally accessible by
+default, whereas class instance variables are like all instance variables and not externally accessible by default.
+
+You can make class instance variables externally accessible similarly to how you make instance variables accessible to
+regular objects, by calling `attr_reader`/`attr_accessor`.
+
+```ruby
+class A
+  @a = 1
+
+  class << self
+    attr_reader :a
+  end
+end
+
+A.a # 1
+```
+
+## Naming considerations with constants
+
+The naming of constants depends on whether they are classes/modules or other objects. Classes and modules should use
+**CamelCase**. Other objects should use **ALLCAPS_SNAKE_CASE**. Ruby follows these conventions internally. You have class
+names such as **ArgumentError** and **BasicObject**, and other constant names such as **TOPLEVEL_BINDING** and
+**RUBY_ENGINE**.
