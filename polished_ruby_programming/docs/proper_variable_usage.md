@@ -752,3 +752,242 @@ The naming of constants depends on whether they are classes/modules or other obj
 **CamelCase**. Other objects should use **ALLCAPS_SNAKE_CASE**. Ruby follows these conventions internally. You have class
 names such as **ArgumentError** and **BasicObject**, and other constant names such as **TOPLEVEL_BINDING** and
 **RUBY_ENGINE**.
+
+
+## Replacing class variables
+
+There are a few features in Ruby you should never use, and class variables are one of them.
+
+To give a few examples as to why:
+
+```ruby
+class A
+  @@a = 1
+end
+
+class B < A
+  @@a = 2
+end
+```
+
+Changing a class variable in the subclass affects the class variable in the superclass as well. This is because class
+variables aren't really specific to a class but to a class hierarchy. Therefore, you can never safely define a class
+variable in any class that is subclassed or any module that is included in other classes.
+
+And it get's worse. If you define a class variable in a subclass, that doesn't exist in the superclass, if you try to
+access it from the superclass, you get **NameError**, which is fine. If you on a later stage define that same variable
+in the superclass, though, when you try to access it in the subclass, you get **RuntimeError**, which effectively breaks
+the subclass.
+
+
+## Replacing class variables with constants
+
+One possible approach to replacing class variables is using constants method.
+
+The big downside of this approach is that Ruby warns you when you change the value of a constant. Also, you can't set a
+constant inside a method, at least not using the standard constant setting syntax:
+
+```ruby
+class B
+  C = 2
+
+  def increment
+    C += 1 # SyntaxError - dynamic constant assignment
+  end
+end
+```
+
+You have to use **Module#`const_get`**:
+
+```ruby
+class B
+  def increment
+    self.class.const_set(:C, C + 1)
+  end
+end
+```
+
+That would still warn on every call on the method though.
+
+Because a constant can refer to a mutable object, it is possible to allow reassignment behavior without actually
+reassigning the constant itself:
+
+```ruby
+class B
+  C = [0]
+
+  def increment
+    C[0] += 1
+  end
+end
+```
+
+This approach can definitely be considered a hack and not an implementation recommendation. It's bad to use this approach,
+for the same reason it is bad to rely on globally mutable data structures in general. In any case where you'll be
+reassigning the value, it is bad idea to use a constant, and you should use one of the next two approaches instead.
+
+
+## Replacing class variables with class instance variables using the superclass lookup approach
+
+If you cannot replace your class variable with a constant because you are reassigning it, you should replace it with a
+class instance variable. However, like all instance variables, class instance variables are specific to the class itself
+and are not automatically propagated to subclasses.
+
+```ruby
+class A
+  @c = 1
+end
+
+class B < A
+end
+```
+
+If you want to get the value of `@c` from **B** using the superclass lookup approach, you need to either use a recursive
+or iterative approach to look in the superclasses.
+
+```ruby
+class B
+  is defined?(@c)
+    c = @c
+  else
+    klass = self
+    while klass = klass.superclass
+      if klass.instance_variable_defined?(:@c)
+        c = klass.instance_variable.get(:@c)
+        break
+      end
+    end
+  end
+end
+```
+
+This approach is very verbose for such a task though. The recursive approach is similar, it just uses recursion instead
+of iteration in the lookup method. This is much simpler in terms of code, and it performs better as well, due to fewer
+and simple method calls.
+
+```ruby
+def A.c
+  defined?(@c) ? @c : superclass.c
+end
+```
+
+One advantage of the superclass lookup approach is that if you change the class instance variable value in the superclass
+without changing in the subclass, calling the lookup method in the subclass will reflect the changed value in the
+superclass.
+
+Another advantage is that the superclass approach uses minimal memory. The disadvantage is the variable lookup can take
+significantly more time, at least for deep hierarchies, especially if it is unlikely you'll be changing the value in the
+subclasses.
+
+This is a classing processing time versus memory trade-off. The superclass lookup approach makes the most sense if reduced
+memory is more important than processing time.
+
+
+## Replacing class variables with class instance variables using the copy to subclass approach
+
+This is an alternative to the superclass lookup approach – copying each instance variable into the subclass when the
+subclass is created.
+
+```ruby
+class A
+  @c = 1
+
+  def self.inherited(subclass)
+    subclass.instance_variable_set(:@c, @c)
+  end
+end
+
+class B < A
+  @c # 1
+end
+```
+
+Advantages:\
+✅ You can access the instance variables directly in the subclasses without having to use a special method\
+✅ It's faster to access the values in subclasses
+
+Disadvantages:\
+❌ If you change the value of a variable in the superclass, the subclass won't reflect that change\
+❌ This approach requires too much memory, especially if you have large number of instance variables
+
+
+## Avoiding global variables, most of the time
+
+In general, using global variables in Ruby is discouraged unless it's necessary. Some examples where it makes sense to use
+them is when modifying the load path:
+
+```ruby
+$LOAD_PATH.unshift('../lib')
+```
+
+Or when silencing warnings in a block (you really got to have a very good reason to do this):
+
+```ruby
+def no_warnings
+  verbose = $VERBOSE
+  $VERBOSE = nil
+  yield
+ensure
+  $VERBOSE = verbose
+end
+```
+
+Or lastly, when reading/writing to the standard input, output, or error:
+
+```ruby
+$stdout.write($stdin.read) rescue $stderr.puts($!.to_s)
+```
+
+The main issues with using global variables in Ruby are the same as using global variables in any programming language,
+in that it encourages poor coding style and hard-to-follow code. Additionally, because there's only one shared namespace
+for global variables, there is a greater chance of variable conflicts.
+
+Using an approach that avoids global variables while keeping the same architecture doesn't fix anything. If you need
+information in a low-level part of your app that comes from a high-level part of your app, don't make the shortcut of
+using a global variable or any similar approach. Properly pass the data as method arguments all the way down. Otherwise
+you are setting yourself up for long-term problems.
+
+<details>
+  <summary>Using constant object instead of a global variable example</summary>
+
+  For example, if you are writing a batch processing system for invoices and you want to print a period for every 100
+  invoices processed as a minimal form of progress indicator, you could use a global variable as a quick way to implement
+  it.
+
+  ```ruby
+  $invoices_processed = 0
+  # ...
+  $invoices_processed += 1
+  if $invoices_processed % 100 == 0
+    print '.'
+  end
+  ```
+
+  To avoid the use of a global variable, it's possible to switch to a constant object with some useful helper methods:
+
+  ```ruby
+  INVOICES_PROCESSED = Object.new
+  INVOICES_PROCESSED.instance_eval do
+    @processed = 0
+
+    def processed
+      @processed += 1
+      if @processed % 100 == 0
+        print '.'
+      end
+    end
+  end
+  ```
+
+  And when you process an invoice, you can use simpler code:
+
+  ```ruby
+  INVOICES_PROCESSED.processed
+  ```
+
+</details>
+
+
+> About the only time to use a global variable instead of a singleton method or a specialized constant is when you need
+> the absolute maximum performance, as global variable getting and setting is faster than calling a method. In all other
+> cases, defining your own global variables should be avoided.
