@@ -346,3 +346,256 @@ foo(bar: 1)
 
 Because the `foo` method now accepts keyword arguments, Ruby no longer performs keyword to positional hash conversion,
 thereby breaking the called. You can avoid this issue for new methods with the `**nil` syntax.
+
+
+## Block arguments
+
+> ... the block argument is the single most important argument that a method accepts.
+
+This is because if you want to change the behavior of an existing method in a backward-compatible manner, it is easy to
+add an optional positional argument or optional keyword argument. However, once you have decided how a method will handle
+a block, you are commited to keeping the behavior of that block argument the same unless you want to break backward
+compatibility.
+
+<details>
+  <summary>Breaking backwards-compatibility example</summary>
+
+  Let's say you have a method that yields the argument and the current value of one of the receiver's instance variables
+  to the block:
+
+  ```ruby
+  def foo(bar)
+    yield(bar, @baz)
+  end
+
+  foo(1) do |bar, baz|
+    bar + baz
+  end
+  ```
+
+  Later, you determine that it would be more useful to also yield an additional value to the block, maybe from another
+  instance variable:
+
+  ```ruby
+  def foo(bar)
+    yield(bar, @baz, @initial || 0)
+  end
+
+  foo(1) do |bar, baz|
+    bar + baz
+  end
+  ```
+
+  Callers are still allowed to use only the first 2 arguments because the block will ignore the extra argument that's
+  been passed.
+
+  Unfortunately, the change that we made to the previous method definition is not completely backwards compatible. It
+  does work correctly for regular blocks, but it will break if you pass in a lambda proc that expects the previous block
+  API:
+
+  ```ruby
+  adder = ->(bar, baz) do
+    bar + baz
+  end
+
+  # Worked before, now broken
+  foo(1, &adder)
+  ```
+
+  Because lambda procs are strict in regard to arty, it's never safe to modify the arity of what you are yielding to a
+  block if users can pass a lambda proc as the block argument.
+
+  To handle this safely, you must trigger the new behavior, and it's probably best to do that via a keyword.
+
+  ```ruby
+  def foo(bar, include_initial: false)
+    if include_initial
+      yield bar, @baz, @initial || 0
+    else
+      yield bar, @baz
+    end
+  end
+  ```
+
+  This is a safe approach. However, it significantly increases complexity, both for the caller of the method and for the
+  maintainer of the method. An alternative approach to handling block argument changes is to check the block's arity:
+
+  ```ruby
+  def foo(bar, &block)
+    case block.arity
+    when 2, -1, -2
+      yield bar, @baz
+    else
+      yield bar, @baz, @initial || 0
+    end
+  end
+  ```
+
+</details>
+
+Whether you would like to change the arguments that are being passed to the block, give strong consideration to defining
+a separate method with the new block arguments, instead of using either the keyword argument approach or the arity
+checking approach.
+
+
+## Learning about the importance of method visibility
+
+...When a method is not public, it signals to the users of the object that the method is an implementation detail, and
+subject to change at any time.
+
+Whether a method is a supported interface (public method) or an implementation detail (protected or private method) is
+critical to the long-term maintenance of a library.
+
+> In general, the larger the supported interface for an object, the more difficult it is to maintain it.
+
+An object with 100 public methods basically requires that changes to the object do not change the desired behavior of 100
+methods. Alternatively, an object with one public method and 99 private methods is much easier to maintain.
+
+> Whenever you add a method to a class, one of the first questions you should ask yourself is:
+>
+> *"Do I want to commit to supporting backward compatibility for this method, at least until the next major version is
+> released, and potentially forever?"*
+>
+> If the answer is yes, then it should be a public method. If not, in most cases, it should be private.
+
+...In general, you should only break backward compatibility in a library when the breakage is necessary, and when keeping
+the backward compatibility would significantly harm future development.
+
+If you aren't sure whether a method should be public or private, make it private.
+
+### Protected method visibility
+
+In general you should probably avoid protected visibility except for one main use case. The main use case for protected
+visibility is when you're calling methods internally to the library, when the caller is another method in the same class,
+and where you want to avoid the performance overhead of calling `send`.
+
+The downside of protected visibility is that due to backward compatibility, protected methods show up in
+**Module**`#instance_methods` and **Kernel**`#methods`, even though you can't call the methods normally.
+
+
+## Fixing visibility mistakes
+
+If you want to make a public method private, there's no easy way to handle that in a backward compatible manner.
+However, there is a way to break backward compatibility gradually and warn others of upcoming method visibility changes.
+
+<details>
+  <summary>Using `method_missing` to issue warnings</summary>
+
+  ```ruby
+  class MethodVis
+    private def method_missing(sym, ...)
+      if sym == :foo
+        warn("foo is a protected method, stop calling it!", uplevel: 1)
+        return foo(...)
+      end
+      super
+    end
+  end
+
+  m.foo
+  # foo is a protected method, stop calling it!
+  # => :foo
+  ```
+
+</details>
+
+Same approach can be used to transform a public constant into a private one.
+
+<details>
+  <summary>Using `const_missing` to issue warnings</summary>
+
+  ```ruby
+  class ConstantVis
+    PRIVATE  = 1
+    private_const :PRIVATE
+
+    def self.const_missing(const)
+      if sym == :PRIVATE
+        warn("ConstantVis::PRIVATE is a private constant, " \
+              stop accessing it!", uplevel: 1)
+        return PRIVATE
+      end
+      super
+    end
+  end
+
+  ConstantVis::PRIVATE
+  # ConstantVis::PRIVATE is a private constant,
+  # stop accessing it!
+  # => 1
+  ```
+
+</details>
+
+If you have a lot of methods and constants that are currently public and should be made private, you can use the
+`deprecate_public` gem to handle all the hard work:
+
+```ruby
+require 'deprecate_public'
+
+class MethodVis
+  deprecate_public :foo
+end
+
+class ConstantVis
+  deprecate_public_constant :PRIVATE
+end
+```
+
+
+## Handling delegation
+
+Handling delegation incorrectly can make debugging and refactoring more difficult, so it is useful to learn how to best
+implement it.
+
+<details>
+  <summary>Renaming public methods example</summary>
+
+  ```ruby
+  def foo(*args, **kwargs, &block)
+    [args, kwargs, block]
+  end
+  ```
+
+  Renaming the method from `foo` to `bar` would break backward compatibility for users calling `foo`.
+
+  The best way to handle this is to re-add the same method you are renaming, have it issue a deprecation warning, and
+  then forward all arguments to the renamed method:
+
+  ```ruby
+  def foo(*args, **kwargs, &block)
+    warn("foo is being renamed to bar", uplevel: 1)
+    bar(*args, **kwargs, &block)
+  end
+  ```
+
+  Delegating all arguments to another method is such a common pattern in Ruby that they added a shortcut for it in
+  Ruby 2.7 by using `...`:
+
+  ```ruby
+  def foo(...)
+    warn("foo is being renamed to bar", uplevel: 1)
+    bar(...)
+  end
+  ```
+
+</details>
+
+## Delegating to other objects
+
+...Ruby includes a standard library named `forwardable` that handles method delegation, as well as a standard lib named
+`delegate`, that's for creating delegate objects.
+
+Using the `forwardable` library, you can handle this method delegation without defining a method yourself:
+
+```ruby
+require 'forwardable'
+
+class A
+  extend Forwardable
+
+  def_delegators :b, :foo
+  def_delegators :@b, :foo
+  def_delegators "A::B"", :foo, :bar, :baz
+end
+```
