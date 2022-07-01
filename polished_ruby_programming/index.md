@@ -5,3 +5,4 @@
 - [Proper variable usage](docs/proper_variable_usage.md)
 - [Methods and their arguments](docs/methods_and_arguments.md)
 - [Handling Errors](docs/handling_errors.md)
+- [Formatting Code for Easy Reading](docs/formatting_code_for_easy_reading.md)
