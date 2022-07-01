@@ -95,3 +95,98 @@ In most cases involving security, fail-closed is considered to be the superior m
 Another advantage of using exceptions to handle errors is that in many cases, higher-level code wants to handle the same
 type of error the same way. So, instead of having one hundred different if-else expressions, you can have in a single
 place in your application a rescue block that rescues the exception that the `check` method raises (for example).
+
+## Considering performance when using exceptions
+
+As mentioned, using return values instead of raising exceptions performs much better. For simpler methods, there isn't
+a way to get the exception handling approach even close to the return value approach in terms of performance.
+
+However, for methods that do even minimal processing, such as a single **String**`#gsub` call, the time for executig the
+method is probably larger than the difference between the exception approach and the return value approach. Still for
+the absolute maximum performance, you need to use the return value approach.
+
+> Exceptions get slower in proportion to the size of the call stack.
+
+The reason for this is that when you raise an exception the normal way, Ruby has to do a lot of work to construct a
+backtrace for it. Ruby needs to read the entire call stack and turn it into an array of **Thread::Backtrace::Location**
+objects.
+
+If you wan to speed up the exception generation process, you can pass a third argument - an empty array - which is the
+array to use for the backtrace.
+
+```ruby
+raise ArgumentError, "message",  []
+```
+
+This however would turn debugging into a nightmare. So best to avoid it.
+
+## Retrying transient errors
+
+There are some cases, when retrying errors makes sense. In case of a failed network request, for example. Ruby has a
+built-in keyword for handling transient errors, which is `retry`:
+
+<details>
+  <summary>Retrying network error example</summary>
+
+  ```ruby
+  require 'net/http'
+  require 'uri'
+
+  uri = URI("http://example.local/file")
+  begin
+    response = Net::HTTP.get_response(uri)
+    raise Net::HTTPBadResponse if response.code.to_i >= 400
+  rescue SocketError, SystemCallError, Net::HTTPBadResponse
+    retry
+  end
+  ```
+
+  Couple of things to note in the above example:
+  - We extracted the uri out of the loop to eliminate possible issues with its creation.
+  - We are only retrying on specific errors occurrance
+  - A valid response could as well be a failed response
+  - Since we cannot use `retry` outside of a `rescue` block, we raise an error to trigger the retry
+
+  What if your requirements change, and now you only want to retry on an HTTP client or server error, and not for other
+  errors?
+
+  The `redo` keyword comes to the rescue here. It's similar to `next`, but instead of going to the next block iteration,
+  itrestarts the current block iteration.
+
+  ```ruby
+  require 'net/http'
+  require 'uri'
+
+  uri = URI("http://example.local/file")
+
+  response = nil
+
+  1.times do
+    response = Net::HTTP.get_response(uri)
+
+    redo if response.code.to_i >= 400
+  end
+  ```
+
+</details>
+
+> ...In general, procs and lambdas are among the more expensive objects instances to create, at least compared to other
+> core classes.
+
+## Understangind more advanced retrying
+
+Use exponential backoff algorithm to schedule retries.
+
+## Designing exception class hierarchies
+
+It's best to raise an exception class related to your library, since it allows users of your library to handle the
+exception differently from exceptions in other libraries.
+
+> Your error classes should **always** inherit from **StandardError** and not from **Exception**. Subclassing
+> **Exception** is very rare because it's subclasses are not caught by `rescue` clauses without arguments.
+
+So best practices here are:
+- Having a generic exception class for your lib
+- When adding new exception classes to your library, always make them inherit the generic exception class. This way code
+  that used to rescue the generic class will be backwards-compatible and users can change their code to rescue the newly
+  added exception subclass
